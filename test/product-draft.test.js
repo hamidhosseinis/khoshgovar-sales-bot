@@ -15,6 +15,14 @@ test('nostalgic soda is stored as an unpublished, unapproved draft', () => {
   assert.equal(draft.image.usage_rights_verified, false);
 });
 
+test('Google Drive image is referenced only as an unapproved source', () => {
+  assert.equal(draft.image.source_provider, 'google_drive');
+  assert.equal(draft.image.drive_file_id, '1R597QVAJoAsNfrNj_-Bm1JoGYvBhSKEV');
+  assert.equal(draft.image.source_mime_type, 'image/jpeg');
+  assert.equal(draft.image.approval_status, 'pending');
+  assert.equal(draft.image.usage_rights_verified, false);
+});
+
 test('case and prices match the submitted values without inventing a unit basis', () => {
   assert.deepEqual(draft.variants.map((variant) => variant.title_fa), ['کوکاکولا', 'فانتا پرتقالی']);
   assert.equal(draft.units_per_case, 12);
