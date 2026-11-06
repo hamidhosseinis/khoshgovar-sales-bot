@@ -50,18 +50,18 @@ test('fails closed when secret or bot token is absent', async () => {
   const res = await handleRequest(makeRequest(), { TELEGRAM_BOT_TOKEN: env.TELEGRAM_BOT_TOKEN });
   assert.equal(res.status, 503);
 });
-test('public start message contains no unapproved prices', async () => {
+test('public start message advertises approved products without automatic pricing', async () => {
   const { calls, fetchMock } = fakeSender();
   const res = await handleRequest(makeRequest(), env, fetchMock);
   assert.equal(res.status, 200);
   assert.equal(calls.length, 1);
-  assert.match(calls[0].data.text, /هیچ قیمت یا طرحی/);
+  assert.match(calls[0].data.text, /نوشابه نوستالژیک/);\n  assert.match(calls[0].data.text, /محاسبه خودکار قیمت فعال نیست/);
   assert.ok(calls[0].data.reply_markup.keyboard.length > 0);
 });
-test('pricing menu denies unapproved calculations', async () => {
+test('pricing menu denies calculations when unit basis is unknown', async () => {
   const { calls, fetchMock } = fakeSender();
   await handleRequest(makeRequest(update('🧮 محاسبه قیمت')), env, fetchMock);
-  assert.match(calls[0].data.text, /فعلاً مبلغی نمایش داده نمی‌شود/);
+  assert.match(calls[0].data.text, /محاسبه خودکار یا مبلغ سفارش انجام نمی‌شود/);
 });
 test('admin command denied without explicit administrator ID', async () => {
   const { calls, fetchMock } = fakeSender();
@@ -100,4 +100,26 @@ test('Telegram delivery errors are not reflected in response details', async () 
   const res = await handleRequest(makeRequest(), env, failedSender);
   assert.equal(res.status, 502);
   assert.doesNotMatch(await res.text(), /secret/);
+});
+
+test('public product menu shows only explicitly approved product details and image link', async () => {
+  const { calls, fetchMock } = fakeSender();
+  await handleRequest(makeRequest(update('📦 محصولات')), env, fetchMock);
+  const text = calls[0].data.text;
+  assert.match(text, /نوشابه نوستالژیک|کوکاکولا|فانتا پرتقالی/);
+  assert.match(text, /۸۰۰[٬,]۰۰۰/);
+  assert.match(text, /drive.google.com\/file\/d\/1R597QVAJoAsNfrNj_-Bm1JoGYvBhSKEV\/view/);
+  assert.match(text, /مبنای واحد مبلغ/);
+  assert.doesNotMatch(text, /data\/drafts|source|approval_status|internal/);
+});
+
+test('public plans preserve approved amounts without deriving prices or order totals', async () => {
+  const { calls, fetchMock } = fakeSender();
+  await handleRequest(makeRequest(update('🏷 طرح‌های عمومی')), env, fetchMock);
+  const text = calls[0].data.text;
+  for (const label of ['طرح ۱', 'طرح ۲', 'طرح ۳']) assert.match(text, new RegExp(label));
+  for (const amount of ['۶۴۰', '۶۱۸', '۶۰۵']) assert.match(text, new RegExp(amount));
+  assert.match(text, /۴ بسته نوشابه جور/);
+  assert.match(text, /۱۰ بسته نوشابه جور/);
+  assert.match(text, /پیش از سفارش استعلام کنید/);
 });
