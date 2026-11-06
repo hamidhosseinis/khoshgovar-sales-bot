@@ -18,11 +18,15 @@
     "note_fa": "مدت مصرف اعلام‌شده؛ تاریخ انقضای هر سری تولید باید جداگانه کنترل شود."
   },
   "image": {
-    "original_filename": "1000104773.jpg",
+    "original_filename": "نوستالژیک.jpg",
     "preview_path": "assets/drafts/nostalgic-soda-preview.jpg",
     "telegram_asset_path_after_approval": "assets/catalog/nostalgic-soda.jpg",
     "approval_status": "pending",
-    "usage_rights_verified": false
+    "usage_rights_verified": false,
+    "source_provider": "google_drive",
+    "drive_file_id": "1R597QVAJoAsNfrNj_-Bm1JoGYvBhSKEV",
+    "source_view_url": "https://drive.google.com/file/d/1R597QVAJoAsNfrNj_-Bm1JoGYvBhSKEV/view",
+    "source_mime_type": "image/jpeg"
   },
   "prices": {
     "currency": "IRR",
@@ -92,7 +96,7 @@
     "تأیید مجوز انتشار قیمت و شرایط طرح برای مشتریان",
     "اعتبارسنجی قیمت‌های نهایی با روش محاسبه شرکت، نحوه اعمال مالیات و گردکردن",
     "تعیین محدوده جغرافیایی، زمان اعتبار طرح‌ها و تاریخ به‌روزرسانی قیمت",
-    "تأیید حق استفاده عمومی از تصویر و تهیه فایل نهایی"
+    "تأیید حق استفاده عمومی از تصویر، ارزیابی دسترسی فایل Google Drive و جلوگیری از ویرایش عمومی آن"
   ],
   "caution_fa": "قیمت ۸۰۰٬۰۰۰ ریالی مصرف‌کننده مبنای محاسبه درصدهای اعلام‌شده نیست یا ضوابط دیگری اعمال شده؛ قیمت‌های نهایی تا تأیید، عیناً ذخیره می‌شوند و مجدداً محاسبه یا منتشر نمی‌شوند."
 }
