@@ -1,0 +1,33 @@
+# Secrets and local environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.secrets*
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
+# Dependencies/build
+node_modules/
+dist/
+build/
+coverage/
+.wrangler/
+.turbo/
+*.log
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local sensitive data exports
+data/private/
+exports/
+*.sqlite
+*.db
