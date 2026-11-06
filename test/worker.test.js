@@ -55,7 +55,8 @@ test('public start message advertises approved products without automatic pricin
   const res = await handleRequest(makeRequest(), env, fetchMock);
   assert.equal(res.status, 200);
   assert.equal(calls.length, 1);
-  assert.match(calls[0].data.text, /نوشابه نوستالژیک/);\n  assert.match(calls[0].data.text, /محاسبه خودکار قیمت فعال نیست/);
+  assert.match(calls[0].data.text, /نوشابه نوستالژیک/);
+  assert.match(calls[0].data.text, /محاسبه خودکار قیمت فعال نیست/);
   assert.ok(calls[0].data.reply_markup.keyboard.length > 0);
 });
 test('pricing menu denies calculations when unit basis is unknown', async () => {
