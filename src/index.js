@@ -1,5 +1,6 @@
 import { publicReply } from './messages.js';
 import { botReply } from './bot.js';
+import { syncTelegramWebhook } from './telegram-webhook-sync.js';
 
 const WEBHOOK_PATH = '/telegram/webhook';
 const MAX_BODY_BYTES = 64 * 1024;
@@ -109,5 +110,8 @@ export async function handleRequest(request, env, sendFetch = fetch) {
 export default {
   async fetch(request, env) {
     return handleRequest(request, env);
+  },
+  async scheduled(_controller, env) {
+    await syncTelegramWebhook(env);
   },
 };
