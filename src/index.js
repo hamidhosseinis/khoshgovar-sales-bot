@@ -1,4 +1,5 @@
 import { publicReply } from './messages.js';
+import { botReply } from './bot.js';
 
 const WEBHOOK_PATH = '/telegram/webhook';
 const MAX_BODY_BYTES = 64 * 1024;
@@ -53,7 +54,7 @@ async function sendTelegramMessage(botToken, chatId, reply, sendFetch) {
   const apiResponse = await sendFetch('https://api.telegram.org/bot' + botToken + '/sendMessage', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, ...reply }),
+    body: JSON.stringify({ chat_id: chatId, ...reply, text: String(reply.text).slice(0, 3900) }),
   });
   if (!apiResponse.ok) throw new Error('telegram_send_failed');
   const result = await apiResponse.json();
@@ -92,8 +93,11 @@ export async function handleRequest(request, env, sendFetch = fetch) {
       !Number.isSafeInteger(message.chat?.id) ||
       !Number.isSafeInteger(message.from?.id)) return response('OK');
 
-  const reply = publicReply(message, env);
   try {
+    // Without verified Sheets credentials keep the legacy fail-closed public menu.
+    const reply = (env.GOOGLE_SERVICE_ACCOUNT_JSON && env.SALES_SPREADSHEET_ID)
+      ? await botReply(update, env, sendFetch) : publicReply(message, env);
+    if (!reply) return response('OK');
     await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id, reply, sendFetch);
     return response('OK');
   } catch {
