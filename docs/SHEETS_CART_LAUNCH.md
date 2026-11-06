@@ -9,11 +9,18 @@
 
 ## اتصال Google Sheets در Cloudflare
 1. یک Service Account فقط با دسترسی خواندن Google Sheets ایجاد کنید. کلید JSON آن را خارج از GitHub/گفتگو، در Cloudflare Worker Secret با نام GOOGLE_SERVICE_ACCOUNT_JSON ثبت کنید.
-2. ایمیل Service Account را با دسترسی Viewer فقط به شیت «Khoshgovar Sales Database» بدهید.
-3. SALES_SPREADSHEET_ID را به عنوان متغیر Worker (نه secret) با شناسه واقعی شیت پیکربندی کنید.
+2. ایمیل Service Account را با دسترسی Viewer **فقط به نسخه خصوصی** «Khoshgovar Sales Bot — Private Release Source» بدهید. شناسه نسخه خصوصی: 1M0cRg-tDXA2bZimx9o8Cr6C5QmQi-tg1HLtcFNRkwWo.
+3. SALES_SPREADSHEET_ID از قبل در Worker با شناسه **نسخه خصوصی** تنظیم شده است. شیت اولیه با شناسه 1U8AexyZKODq76-8P-5frAP6JM5RdEVj2mgYrzMUfybE و پوشه اصلی هنوز anyone:writer است و **نباید منبع زنده بات باشد**. ورودی داده جدید/تغییر وضعیت انتشار را در نسخه خصوصی انجام دهید.
 4. ساختار تب‌ها: Products، Discount_Plans، Product_Plans، Plan_Requirements، Plan_Discount_Targets. هدرهای موجود قرارداد API هستند.
 5. Worker فقط scope خواندن Google Sheets می‌گیرد، هر ۶۰ ثانیه اطلاعات عمومی معتبر را دوباره می‌خواند و در صورت خطای دسترسی، اطلاعات قدیمی را منتشر نمی‌کند.
 6. تغییر واقعی در شیت پس از حداکثر ۶۰ ثانیه قابل مشاهده است، تنها اگر تمام مجوزها و شروط تاریخ اعتبار آن معتبر باشند.
+
+## وضعیت امنیتی مشاهده‌شده (۶ نوامبر ۲۰۲۶)
+- شیت اولیه در پوشه khoshgovar و خود پوشه، مجوز «هرکس دارای لینک: ویرایشگر» دارند. از آن‌ها برای انتشار مستقیم قیمت استفاده نشود؛ ابتدا دسترسی عمومی ویرایشگر را حذف کنید.
+- نسخه خصوصی از فایل اولیه کپی شده و در زمان بررسی فقط مالک به آن دسترسی داشت؛ Worker به همین نسخه اشاره می‌کند.
+- دو محصول نوستالژیک با مجوز انتشار مالک در نسخه خصوصی PUBLISHED هستند، اما group_verified=FALSE و قیمت پایه ندارند؛ بنابراین واجد هیچ محاسبه تخفیف نیستند.
+- شش طرح فعلی در نسخه خصوصی همچنان DRAFT/FALSE و بدون تاریخ اعتبار هستند؛ عمداً برای مشتری منتشر نمی‌شوند.
+- اتصال زنده Sheets و Webhook تا قرار دادن Secrets و تکمیل بازبینی انتشار فعال نمی‌شود.
 
 ## ضوابط انتشار
 - Products: publish_status=PUBLISHED و approved_for_public=TRUE (برای شرکت در طرح، group_verified=TRUE و group_id معتبر نیز لازم است).
