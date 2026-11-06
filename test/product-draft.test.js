@@ -43,7 +43,13 @@ test('mixed-case conditions are captured without guessing eligibility rules', ()
   });
 });
 
-test('draft product and commercial prices never appear in public catalog response', () => {
-  const response = JSON.stringify(publicReply(productMessage, {}));
-  assert.doesNotMatch(response, /نوشابه نوستالژیک|618900|605000|640000|800000/);
+test('draft remains non-published while separately approved data can appear publicly', () => {
+  const product = JSON.stringify(publicReply(productMessage, {}));
+  assert.match(product, /نوشابه نوستالژیک/);
+  assert.match(product, /مبنای واحد مبلغ/);
+  assert.doesNotMatch(product, /source|approval_status|data\/drafts/);
+  const offers = JSON.stringify(publicReply({ ...productMessage, text: '🏷 طرح‌های عمومی' }, {}));
+  assert.match(offers, /طرح ۲/);
+  assert.match(offers, /قیمت خرید اعلام‌شده با مالیات/);
+  assert.equal(draft.governance.published, false);
 });
