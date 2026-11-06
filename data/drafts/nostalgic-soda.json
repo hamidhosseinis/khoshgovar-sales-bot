@@ -1,0 +1,98 @@
+{
+  "product_id": "nostalgic-soda",
+  "title_fa": "نوشابه نوستالژیک",
+  "variants": [
+    {
+      "id": "cola",
+      "title_fa": "کوکاکولا"
+    },
+    {
+      "id": "orange-fanta",
+      "title_fa": "فانتا پرتقالی"
+    }
+  ],
+  "units_per_case": 12,
+  "shelf_life": {
+    "value": 6,
+    "unit": "month",
+    "note_fa": "مدت مصرف اعلام‌شده؛ تاریخ انقضای هر سری تولید باید جداگانه کنترل شود."
+  },
+  "image": {
+    "original_filename": "1000104773.jpg",
+    "preview_path": "assets/drafts/nostalgic-soda-preview.jpg",
+    "telegram_asset_path_after_approval": "assets/catalog/nostalgic-soda.jpg",
+    "approval_status": "pending",
+    "usage_rights_verified": false
+  },
+  "prices": {
+    "currency": "IRR",
+    "basis": "unconfirmed_per_unit_or_case",
+    "consumer_price": 800000,
+    "buyer_prices_include_tax": true,
+    "offers": [
+      {
+        "id": "plan-1",
+        "label_fa": "طرح ۱",
+        "discount_percent": 10,
+        "final_buyer_price": 640000,
+        "requirements": {
+          "soda_cases": null,
+          "other_cases": null,
+          "other_excludes": []
+        },
+        "notes_fa": "خالص ۱۰٪ تخفیف؛ حداقل تعداد سفارش اعلام نشده است."
+      },
+      {
+        "id": "plan-2",
+        "label_fa": "طرح ۲",
+        "discount_percent": 13,
+        "final_buyer_price": 618900,
+        "requirements": {
+          "soda_cases": 4,
+          "soda_mix_allowed": true,
+          "other_cases": 1,
+          "other_excludes": [
+            "نوشابه"
+          ]
+        },
+        "notes_fa": "۴ بسته نوشابه جور به همراه ۱ بسته تنوع محصولی غیرنوشابه"
+      },
+      {
+        "id": "plan-3",
+        "label_fa": "طرح ۳",
+        "discount_percent": 15,
+        "final_buyer_price": 605000,
+        "requirements": {
+          "soda_cases": 10,
+          "soda_mix_allowed": true,
+          "other_cases": 3,
+          "other_excludes": [
+            "نوشابه",
+            "آب"
+          ]
+        },
+        "notes_fa": "۱۰ بسته نوشابه جور به همراه ۳ بسته تنوع محصولی غیرنوشابه و غیرآب"
+      }
+    ]
+  },
+  "governance": {
+    "status": "draft",
+    "published": false,
+    "source": "user_provided_chat_2026-11-06",
+    "authorized_for_publication": false,
+    "approved_by": null,
+    "approved_at": null,
+    "valid_from": null,
+    "valid_until": null,
+    "region": null,
+    "price_formula_approved": false
+  },
+  "unresolved": [
+    "تعیین مبنای قیمت: هر بطری یا هر بسته ۱۲تایی",
+    "تأیید مجوز انتشار قیمت و شرایط طرح برای مشتریان",
+    "اعتبارسنجی قیمت‌های نهایی با روش محاسبه شرکت، نحوه اعمال مالیات و گردکردن",
+    "تعیین محدوده جغرافیایی، زمان اعتبار طرح‌ها و تاریخ به‌روزرسانی قیمت",
+    "تأیید حق استفاده عمومی از تصویر و تهیه فایل نهایی"
+  ],
+  "caution_fa": "قیمت ۸۰۰٬۰۰۰ ریالی مصرف‌کننده مبنای محاسبه درصدهای اعلام‌شده نیست یا ضوابط دیگری اعمال شده؛ قیمت‌های نهایی تا تأیید، عیناً ذخیره می‌شوند و مجدداً محاسبه یا منتشر نمی‌شوند."
+}
