@@ -68,10 +68,11 @@ function related(entries, plan, data) {
 }
 export function qualifies(entries, plan, data) {
   const requirements = data.requirements.filter(r => r.plan_id === plan.plan_id);
-  if (!requirements.length || !related(entries, plan, data).length) return false;
+  const eligibleEntries = related(entries, plan, data);
+  if (!requirements.length || !eligibleEntries.length) return false;
   let multiplier = null;
   for (const req of requirements) {
-    const actual = groupQty(entries, req.group_id);
+    const actual = groupQty(eligibleEntries, req.group_id);
     if (req.quantity_rule === 'EXACT_MULTIPLE') {
       const step = Number(req.packs_per_step);
       if (!Number.isSafeInteger(step) || step < 1 || !actual || actual % step !== 0) return false;
@@ -132,15 +133,16 @@ export function suggestions(cart, data) {
     const reqs = data.requirements.filter(r=>r.plan_id===plan.plan_id);
     if (!reqs.length) continue;
     const adds = [];
+    const linkedEntries = related(entries,plan,data);
     const exact = reqs.filter(r=>r.quantity_rule==='EXACT_MULTIPLE');
     let n = 1;
     if (exact.length) {
-      n = Math.max(1, ...exact.map(r=>Math.ceil(groupQty(entries,r.group_id) / Number(r.packs_per_step || 1))));
+      n = Math.max(1, ...exact.map(r=>Math.ceil(groupQty(linkedEntries,r.group_id) / Number(r.packs_per_step || 1))));
       if (plan.max_multiplier && n > Number(plan.max_multiplier)) continue;
     }
     let possible = true;
     for (const r of reqs) {
-      const actual = groupQty(entries,r.group_id);
+      const actual = groupQty(linkedEntries,r.group_id);
       let need = 0;
       if (r.quantity_rule === 'EXACT_MULTIPLE') need = Number(r.packs_per_step) * n - actual;
       else if (r.quantity_rule === 'MINIMUM' || r.quantity_rule === 'RANGE') {
