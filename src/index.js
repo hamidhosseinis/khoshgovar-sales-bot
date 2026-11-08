@@ -1,5 +1,6 @@
 import { publicReply } from './messages.js';
 import { botReply } from './bot.js';
+import { consultationReply, isConsultationRequest } from './consultation.js';
 import { syncTelegramWebhook } from './telegram-webhook-sync.js';
 
 const WEBHOOK_PATH = '/telegram/webhook';
@@ -95,11 +96,19 @@ export async function handleRequest(request, env, sendFetch = fetch) {
       !Number.isSafeInteger(message.from?.id)) return response('OK');
 
   try {
-    // Without verified Sheets credentials keep the legacy fail-closed public menu.
-    const reply = (env.GOOGLE_SERVICE_ACCOUNT_JSON && env.SALES_SPREADSHEET_ID)
-      ? await botReply(update, env, sendFetch) : publicReply(message, env);
+    const content = typeof message.text === 'string' ? message.text.trim() : '';
+    // Public consultation must remain available even when Sheets or D1 are unavailable.
+    // A Telegram reply keyboard cannot open URLs itself; the inline button can.
+    const reply = isConsultationRequest(content)
+      ? consultationReply()
+      : (env.GOOGLE_SERVICE_ACCOUNT_JSON && env.SALES_SPREADSHEET_ID)
+        ? await botReply(update, env, sendFetch) : publicReply(message, env);
     if (!reply) return response('OK');
     await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id, reply, sendFetch);
+    // Also show a true one-tap URL button on /start, while retaining the main reply keyboard.
+    if (content === '/start') {
+      await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id, consultationReply(), sendFetch);
+    }
     return response('OK');
   } catch {
     // Telegram will retry the webhook; do not log secrets or customer messages.
