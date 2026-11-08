@@ -185,3 +185,34 @@ test('unchanged Telegram edit does not create a duplicate message', async () => 
   assert.equal(res.status, 200);
   assert.equal(calls.length, 2);
 });
+
+test('old bottom keyboard text selection is cleared and replaced with inline buttons', async () => {
+  const calls = [];
+  const sender = async (endpoint, init) => {
+    calls.push({ endpoint, data: JSON.parse(init.body) });
+    const result = endpoint.endsWith('sendMessage') ? { message_id: 501 } : {};
+    return new Response(JSON.stringify({ ok: true, result }), {
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  const res = await handleRequest(makeRequest(update('📦 محصولات')), env, sender);
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].data.reply_markup.remove_keyboard, true);
+  assert.match(calls[1].endpoint, /editMessageText$/);
+  assert.equal(calls[1].data.message_id, 501);
+  assert.ok(calls[1].data.reply_markup.inline_keyboard.flat()
+    .some(button => button.callback_data === 'products:1'));
+  assert.equal(calls[1].data.reply_markup.keyboard, undefined);
+});
+test('menu command clears a stale reply keyboard; normal typed text does not spam cleanup', async () => {
+  const { calls, fetchMock } = fakeSender();
+  await handleRequest(makeRequest(update('/menu')), env, fetchMock);
+  assert.equal(calls[0].data.reply_markup.remove_keyboard, true);
+  assert.ok(calls[1].data.reply_markup.inline_keyboard);
+  calls.length = 0;
+  await handleRequest(makeRequest(update('نوشابه')), env, fetchMock);
+  assert.equal(calls.length, 1);
+  assert.ok(calls[0].data.reply_markup.inline_keyboard);
+  assert.equal(calls[0].data.reply_markup.remove_keyboard, undefined);
+});
