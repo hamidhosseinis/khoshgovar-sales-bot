@@ -92,3 +92,16 @@ test('search finds a product outside the first catalog page, regardless of flavo
     products: [...products, priced('P023','آبمیوه گازدار فرشی دی شیشه 250 سی سی')] });
   assert.ok(callbacks(found).includes('product:P023'));
 });
+
+test('back and home share a compact inline row on detail screens', () => {
+  const product = productDetail(products[0], data);
+  const nav = product.reply_markup.inline_keyboard.at(-1);
+  assert.deepEqual(nav.map(button => button.callback_data), ['products:1', 'menu']);
+  assert.equal(product.reply_markup.keyboard, undefined);
+  const planView = planDetail(plan, data);
+  assert.deepEqual(planView.reply_markup.inline_keyboard.at(-1)
+    .map(button => button.callback_data), ['plans:1', 'menu']);
+  const menu = mainMenu();
+  assert.deepEqual(callbacks(menu).slice(0, 4),
+    ['products:1', 'prices:1', 'plans:1', 'search']);
+});
