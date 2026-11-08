@@ -29,8 +29,9 @@ const pager = (page, pages, section) => {
   if (page < pages) row.push(key('بعدی ▶️', section + ':' + (page + 1)));
   return row;
 };
-export function card(text, rows = []) {
-  return { text: String(text).slice(0, 3500), reply_markup: { inline_keyboard: [...rows, home()] } };
+export function card(text, rows = [], showHome = true) {
+  const buttons = showHome ? [...rows, home()] : [...rows];
+  return { text: String(text).slice(0, 3500), reply_markup: { inline_keyboard: buttons } };
 }
 export function welcome() {
   return {
@@ -43,7 +44,7 @@ export function mainMenu() {
     [key('📦 محصولات', 'products:1'), key('🏷 طرح‌ها', 'plans:1')],
     [key('💰 قیمت‌ها', 'prices:1'), key('🛒 سبد خرید', 'cart')],
     [{ text: CONSULTATION_BUTTON_TEXT, url: CONSULTATION_CHAT_URL }],
-  ]);
+  ], false);
 }
 export const PAGE_SIZE = 5;
 function paginate(list, page) {
@@ -71,7 +72,7 @@ function consumer(p) {
     ': ' + fmt(p.consumer_price.amountIRR) + ' ریال';
 }
 function base(p) {
-  return p.box_base_price ? '🏷 پایه هر بسته: ' + fmt(p.box_base_price.amountIRR) + ' ریال' : null;
+  return p.box_base_price ? '🏷 پایه هر بسته (غیرقطعی): ' + fmt(p.box_base_price.amountIRR) + ' ریال' : null;
 }
 export function priceList(data, page = 1) {
   const priced = data.products.filter(p => p.consumer_price || p.box_base_price);
@@ -80,7 +81,9 @@ export function priceList(data, page = 1) {
   if (!view) return card('این صفحه در دسترس نیست.');
   return card('💰 لیست قیمت — صفحه ' + fmt(page) + ' از ' + fmt(view.pages) +
     '\nمحصول را برای مشاهده قیمت‌های مجاز انتخاب کنید.', [
-    ...view.items.map(p => [key(p.product_name, 'price:' + p.product_id)]),
+    ...view.items.map(p => [key(p.product_name + ' | ' + (
+      p.consumer_price ? 'مصرف‌کننده ' + (p.consumer_price.basis === 'PACK' ? 'بسته ' : 'عدد ') + fmt(p.consumer_price.amountIRR) :
+      'پایه بسته ' + fmt(p.box_base_price.amountIRR)) + ' ریال', 'price:' + p.product_id)]),
     ...(pager(page, view.pages, 'prices').length ? [pager(page, view.pages, 'prices')] : []),
   ]);
 }
