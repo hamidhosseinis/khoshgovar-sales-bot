@@ -136,6 +136,11 @@ export function productFamilyList(data, familyId, page = 1) {
   if (index < 0) return card('این خانواده کالایی در دسترس نیست.');
   const family = families[index], v = pageOf(family.items, page);
   if (!v) return card('این صفحه در دسترس نیست.');
+  const nameCounts = new Map();
+  for (const item of family.items) {
+    const name = normalizeCatalogName(item.product_name);
+    nameCounts.set(name, (nameCounts.get(name) || 0) + 1);
+  }
   return card('📦 ' + family.name +
     (v.pages > 1 ? ' | ' + fmt(page) + ' از ' + fmt(v.pages) : '') +
     '\nمدل موردنظر را انتخاب کنید.', [
@@ -143,7 +148,11 @@ export function productFamilyList(data, familyId, page = 1) {
       const name = normalizeCatalogName(p.product_name);
       const label = name.startsWith(family.name + ' ')
         ? name.slice(family.name.length + 1) : name;
-      return [key(label, 'product:' + p.product_id)];
+      // Do not guess unapproved flavors to distinguish source duplicates.
+      // Product IDs already identify each SKU and are safe to show when needed.
+      const display = (nameCounts.get(name) || 0) > 1
+        ? label + ' (کد ' + p.product_id + ')' : label;
+      return [key(display, 'product:' + p.product_id)];
     }),
     ...(pageButtons(page, v.pages, 'family:' + family.id).length
       ? [pageButtons(page, v.pages, 'family:' + family.id)] : []),
