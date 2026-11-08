@@ -18,6 +18,40 @@ export function publicConsumerPrice(p, today) {
     ? { amountIRR: String(amount), basis: p.consumer_price_basis }
     : null;
 }
+// base_price_per_box is authoritative. The per-unit figure is a consistency
+// check only: multiplying a rounded unit value must never change the box base.
+// Spreadsheet floating-point formula outputs may differ in their final digits.
+export function verifiedBoxBase(p) {
+  const raw = String(p.base_price_per_box ?? '').trim();
+  const unitRaw = String(p.box_unit_base_price ?? '').trim();
+  const qtyRaw = String(p.units_per_pack ?? '').trim();
+  if (!/^[1-9]\d*$/.test(raw) || !/^[1-9]\d*$/.test(qtyRaw)) return null;
+  const match = unitRaw.match(/^(\d+)(?:\.(\d{1,15}))?$/);
+  if (!match) return null;
+  const box = BigInt(raw), count = BigInt(qtyRaw);
+  if (box > BigInt(Number.MAX_SAFE_INTEGER) || count > 10000n) return null;
+  const decimals = match[2] ?? '';
+  const scale = 10n ** BigInt(decimals.length);
+  const perUnit = BigInt(match[1]) * scale + BigInt(decimals || '0');
+  if (perUnit <= 0n) return null;
+  const diff = box * scale - perUnit * count;
+  const absDiff = diff < 0n ? -diff : diff;
+  // At integer precision allow up to half an IRR per unit. For formula
+  // decimals allow half the last meaningful (up to 8th) decimal position.
+  const roundingUnit = decimals.length > 8 ? 10n ** BigInt(decimals.length - 8) : 1n;
+  if (absDiff * 2n > count * roundingUnit) return null;
+  return raw;
+}
+function approvedPackBase(p) {
+  if (!allowed(p.final_price_approved_for_public) ||
+      p.base_price_basis !== 'PACK_WITH_TAX') return null;
+  const suppliedBox = String(p.base_price_per_box ?? '').trim();
+  if (suppliedBox) return verifiedBoxBase(p);
+  // Backwards compatible with explicitly verified legacy PACK_WITH_TAX data.
+  const legacy = String(p.base_price_irr ?? '').trim();
+  return /^[1-9]\d*$/.test(legacy) && BigInt(legacy) <= BigInt(Number.MAX_SAFE_INTEGER)
+    ? legacy : null;
+}
 export function approvedProduct(p) {
   return allowed(p.approved_for_public) && p.publish_status === 'PUBLISHED' &&
     typeof p.product_id === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(p.product_id);
@@ -44,14 +78,14 @@ export function inGroup(product, group) {
 }
 export function publicData(rows, today) {
   const products = (rows.Products || []).filter(approvedProduct).map(p => {
-    const finalApproved = allowed(p.final_price_approved_for_public);
+    const approvedBase = approvedPackBase(p);
     return {
       product_id: p.product_id, product_name: p.product_name, flavor: p.flavor,
       units_per_pack: p.units_per_pack, shelf_life_months: p.shelf_life_months,
       // Never carry an unpublished input price into the public pricing evaluator.
-      base_price_irr: finalApproved ? p.base_price_irr : null,
-      base_price_basis: finalApproved ? p.base_price_basis : null,
-      final_price_approved_for_public: finalApproved,
+      base_price_irr: approvedBase,
+      base_price_basis: approvedBase ? 'PACK_WITH_TAX' : null,
+      final_price_approved_for_public: Boolean(approvedBase),
       consumer_price: publicConsumerPrice(p, today),
       category_name: p.category_name, group_id: p.group_id, group_verified: p.group_verified,
     };
