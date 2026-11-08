@@ -1,4 +1,4 @@
-import { inGroup } from './engine.js';
+import { planAppliesToProduct } from './plan-visibility.js';
 import { CONSULTATION_BUTTON_TEXT, CONSULTATION_CHAT_URL } from './consultation.js';
 
 // All customer navigation is inline. No reply keyboard or cart UI.
@@ -65,9 +65,7 @@ function pricedProducts(data) {
   return data.products.filter(p => p.consumer_price || p.box_base_price);
 }
 function compatiblePlans(p, data) {
-  return data.plans.filter(plan =>
-    data.links.some(l => l.product_id === p.product_id && l.plan_id === plan.plan_id) &&
-    data.targets.some(t => t.plan_id === plan.plan_id && inGroup(p, t.group_id)));
+  return data.plans.filter(plan => planAppliesToProduct(p, plan, data));
 }
 export function productList(data, page = 1) {
   if (!data.products.length) return card('📦 محصول منتشرشده‌ای موجود نیست.');
