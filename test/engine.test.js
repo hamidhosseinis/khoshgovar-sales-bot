@@ -326,3 +326,33 @@ test('only public, parent-approved product variants appear without internal note
   assert.ok(!JSON.stringify(d).includes('SECRET'));
   assert.ok(!d.products.some(x=>x.product_id==='CAN'));
 });
+
+test('updated Products.variants_json only publishes entries approved individually', () => {
+  const raw = seed();
+  const p = raw.Products.find(x => x.product_id === 'ORG');
+  p.flavor = 'محرمانه: از متن خام نباید خوانده شود';
+  p.variants_json = JSON.stringify([
+    {variant_id:'V-1',product_id:'ORG',variant_name:'کوکاکولا',approved_for_public:false,review_notes:'INTERNAL_SECRET'},
+    {variant_id:'V-2',product_id:'ORG',variant_name:'اسپرایت',approved_for_public:true,review_notes:'INTERNAL_SECRET'},
+    {variant_id:'V-3',product_id:'ORG',variant_name:'اسپرایت',approved_for_public:true},
+    {variant_id:'V-4',product_id:'OTHER',variant_name:'طعم محصول دیگر',approved_for_public:true},
+    {variant_id:'V-5',product_id:'ORG',product_name:'اشتباه',variant_name:'مغایرت عنوان',approved_for_public:true},
+  ]);
+  const publicView = publicData(raw,today);
+  const org = publicView.products.find(x => x.product_id === 'ORG');
+  assert.deepEqual(org.variants, ['اسپرایت']);
+  assert.equal(org.flavor,undefined);
+  assert.doesNotMatch(JSON.stringify(publicView),/INTERNAL_SECRET|محرمانه|طعم محصول دیگر|مغایرت عنوان|کوکاکولا/);
+  p.variants_json = '{json-broken';
+  assert.deepEqual(publicData(raw,today).products.find(x=>x.product_id==='ORG').variants,[]);
+  p.variants_json = JSON.stringify({variant_name:'سرّی',approved_for_public:true});
+  assert.deepEqual(publicData(raw,today).products.find(x=>x.product_id==='ORG').variants,[]);
+});
+test('unnamed and unpublished catalog rows cannot appear in product menus', () => {
+  const raw=seed();
+  raw.Products.push({product_id:'P001',product_name:'',publish_status:'PUBLISHED',approved_for_public:'TRUE'});
+  raw.Products.push({product_id:'P002',product_name:'  ',publish_status:'PUBLISHED',approved_for_public:'TRUE'});
+  raw.Products.push({product_id:'P003',product_name:'خصوصی',publish_status:'PUBLISHED',approved_for_public:'FALSE'});
+  const data=publicData(raw,today);
+  assert.ok(!data.products.some(p=>['P001','P002','P003'].includes(p.product_id)));
+});
