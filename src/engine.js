@@ -9,8 +9,10 @@ function isoDate(value) {
 // They require row-level publication approval, an explicit unit and valid dates.
 export function publicConsumerPrice(p, today) {
   if (!allowed(p.consumer_price_approved_for_public) ||
-      !isoDate(p.consumer_price_valid_from) || !isoDate(p.consumer_price_valid_to) ||
-      p.consumer_price_valid_from > today || p.consumer_price_valid_to < today ||
+      !isoDate(p.consumer_price_valid_from) ||
+      (p.consumer_price_valid_to && !isoDate(p.consumer_price_valid_to)) ||
+      p.consumer_price_valid_from > today ||
+      (p.consumer_price_valid_to && p.consumer_price_valid_to < today) ||
       !['UNIT', 'PACK'].includes(p.consumer_price_basis) ||
       !/^[1-9]\d*$/.test(String(p.consumer_price_irr ?? ''))) return null;
   const amount = BigInt(p.consumer_price_irr);
@@ -42,6 +44,13 @@ export function verifiedBoxBase(p) {
   if (absDiff * 2n > count * roundingUnit) return null;
   return raw;
 }
+// A public box-base quote is only the input stored in Sheets. It is NOT an
+// approved tax-inclusive final price or a promise of a discount calculation.
+export function publicBoxBase(p) {
+  if (!allowed(p.base_box_price_approved_for_public)) return null;
+  const amount = verifiedBoxBase(p);
+  return amount ? { amountIRR: amount, basis: 'PACK', taxVerified: false } : null;
+}
 function approvedPackBase(p) {
   if (!allowed(p.final_price_approved_for_public) ||
       p.base_price_basis !== 'PACK_WITH_TAX') return null;
@@ -59,8 +68,9 @@ export function approvedProduct(p) {
 export function approvedPlan(p, today = new Date().toISOString().slice(0, 10)) {
   return allowed(p.approved_for_public) && allowed(p.is_active) &&
     p.review_status === 'APPROVED' &&
-    isoDate(p.valid_from) && isoDate(p.valid_to) &&
-    p.valid_from <= today && today <= p.valid_to &&
+    isoDate(p.valid_from) &&
+    (!p.valid_to || isoDate(p.valid_to)) &&
+    p.valid_from <= today && (!p.valid_to || today <= p.valid_to) &&
     Number.isInteger(Number(p.discount_percent)) &&
     Number(p.discount_percent) >= 0 && Number(p.discount_percent) <= 100;
 }
@@ -91,6 +101,16 @@ export function inGroup(product, group) {
   return id === group;
 }
 export function publicData(rows, today) {
+  const variants = new Map();
+  for (const v of rows.Product_Variants || []) {
+    const pid = String(v.product_id || '');
+    const name = String(v.variant_name || '').trim();
+    if (!allowed(v.approved_for_public) || !/^[A-Za-z0-9_-]{1,40}$/.test(pid) ||
+        !name || name.length > 100) continue;
+    const list = variants.get(pid) || [];
+    if (!list.includes(name) && list.length < 30) list.push(name);
+    variants.set(pid, list);
+  }
   const products = (rows.Products || []).filter(approvedProduct).map(p => {
     const approvedBase = approvedPackBase(p);
     return {
@@ -101,6 +121,8 @@ export function publicData(rows, today) {
       base_price_basis: approvedBase ? 'PACK_WITH_TAX' : null,
       final_price_approved_for_public: Boolean(approvedBase),
       consumer_price: publicConsumerPrice(p, today),
+      box_base_price: publicBoxBase(p),
+      variants: variants.get(p.product_id) || [],
       category_name: p.category_name, group_id: p.group_id, group_verified: p.group_verified,
     };
   });

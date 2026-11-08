@@ -21,16 +21,32 @@ const groupNames={
 function reply(text,extras={}) {return {text,reply_markup:extras.reply_markup||keyboard,...extras};}
 const fmt=n=>Number(n).toLocaleString('fa-IR');
 function consumerText(p) {
-  if (!p.consumer_price) return 'قیمت مصرف‌کننده: هنوز تأیید و منتشر نشده';
+  if (!p.consumer_price) return 'قیمت مصرف‌کننده: در داده‌های قابل انتشار ثبت نشده';
   const unit = p.consumer_price.basis === 'PACK' ? 'هر بسته' : 'هر عدد';
   return 'قیمت مصرف‌کننده ' + unit + ': ' + fmt(p.consumer_price.amountIRR) + ' ریال';
 }
-function priceList(data) {
-  if (!data.products.length) return reply('قیمت عمومی محصولی هنوز تأیید نشده است.');
-  const out=['💰 قیمت‌های مصرف‌کننده دارای مجوز انتشار:'];
-  for (const p of data.products.slice(0, 25))
-    out.push('• ' + p.product_id + ' — ' + p.product_name + '\n' + consumerText(p));
-  out.push('قیمت تمام‌شده هر بسته تنها برای ترکیب واجد شرایط در /cart و پس از تصویب سیاست محاسبه نمایش داده می‌شود.');
+function boxBaseText(p) {
+  if (!p.box_base_price) return 'قیمت پایه باکس: ثبت نشده یا کنترل مبلغ نامعتبر است';
+  return 'قیمت پایه هر باکس (مبنای شیت): ' + fmt(p.box_base_price.amountIRR) +
+    ' ریال — شمول مالیات تأیید نشده';
+}
+const pageSize=10;
+function pageOf(data,which,page) {
+  const pages=Math.ceil(data.length/pageSize);
+  if(!Number.isSafeInteger(page)||page<1||page>pages) return null;
+  return {items:data.slice((page-1)*pageSize,page*pageSize),pages};
+}
+function priceList(data,page=1) {
+  if (!data.products.length) return reply('هنوز محصولی در فهرست عمومی ثبت نشده است.');
+  const view=pageOf(data.products,'prices',page);
+  if(!view) return reply('شماره صفحه قیمت‌ها نامعتبر است.');
+  const out=['💰 فهرست قیمت‌های ثبت‌شده در شیت — صفحه '+fmt(page)+' از '+fmt(view.pages)];
+  for (const p of view.items)
+    out.push('• '+p.product_id+' — '+p.product_name+'\n'+consumerText(p)+
+      '\n'+boxBaseText(p));
+  if(page<view.pages)out.push('صفحه بعد: /prices '+(page+1));
+  if(page>1)out.push('صفحه قبل: /prices '+(page-1));
+  out.push('مقادیر پایه برای اطلاع‌اند؛ قیمت قطعی پس از تخفیف به قانون مالیات و گردکردن نیاز دارد.');
   return reply(out.join('\n\n'));
 }
 const maxQty=10000;
@@ -56,17 +72,21 @@ async function changeCart(db,id,pid,delta){
     .bind(String(id),pid,total).run();
   return true;
 }
-function productList(data) {
-  if(!data.products.length)return reply('هنوز محصول تأییدشده‌ای در فهرست عمومی منتشر نشده است.');
-  const lines=['📦 محصولات قابل نمایش عمومی (عکس‌ها فعلاً غیرفعال‌اند):'];
-  for(const p of data.products.slice(0,25)){
+function productList(data,page=1) {
+  if(!data.products.length)return reply('هنوز محصولی در فهرست عمومی ثبت نشده است.');
+  const view=pageOf(data.products,'products',page);
+  if(!view)return reply('شماره صفحه محصولات نامعتبر است.');
+  const lines=['📦 محصولات ثبت‌شده — صفحه '+fmt(page)+' از '+fmt(view.pages)];
+  for(const p of view.items){
     lines.push('• '+p.product_id+' — '+p.product_name+
-      (p.flavor?' ('+p.flavor+')':'')+
-      (p.units_per_pack?' | '+p.units_per_pack+' عدد در بسته':''));
-    lines.push(consumerText(p));
-    lines.push('افزودن یک بسته: /add '+p.product_id+' 1');
+      (p.units_per_pack?' | '+p.units_per_pack+' عدد در باکس':'')+
+      (p.variants.length?' | طعم‌ها: '+p.variants.join('، '):'')+
+      '\n'+consumerText(p)+'\n'+boxBaseText(p)+
+      '\nجزئیات: /product '+p.product_id);
   }
-  return reply(lines.join('\n'));
+  if(page<view.pages)lines.push('صفحه بعد: /products '+(page+1));
+  if(page>1)lines.push('صفحه قبل: /products '+(page-1));
+  return reply(lines.join('\n\n'));
 }
 function planList(data){
   if(!data.plans.length)return reply('در حال حاضر طرح دارای تأیید انتشار و بازه اعتبار ثبت‌شده موجود نیست.');
@@ -85,6 +105,7 @@ function cartText(items,data,env){
     lines.push('• '+p.product_name+' — '+fmt(x.qty)+' بسته'+
       ' | کاهش: /remove '+x.product_id+' 1');
     if (p.consumer_price) lines.push('  '+consumerText(p));
+    if (p.box_base_price) lines.push('  '+boxBaseText(p));
   }
   const evaluation=bestPlan(items,data,env);
   if(evaluation.list.length){
@@ -135,13 +156,19 @@ export async function botReply(update,env,requestFetch=fetch){
   if(content==='/start'||content==='/help'||content==='ℹ️ راهنما'){
     return reply('به دستیار فروش خوشگوار خوش آمدید.\nمحصولات و طرح‌های فقط پس از تأیید انتشار و اعتبار قابل نمایش‌اند.\nبرای افزودن محصول: /add P001 1\nبرای کم‌کردن: /remove P001 1\nبرای سبد: /cart\nبرای قیمت مصرف‌کننده: /prices\nبرای پیشنهاد بیشتر: /suggest\nبرای مشاوره مستقیم: /consult\nعکس‌ها فعلاً غیرفعال‌اند.');
   }
-  if(content==='📦 محصولات'||content==='/products')return productList(data);
-  if(content==='💰 قیمت‌ها'||content==='/prices')return priceList(data);
-  const priceId=content.match(/^\/price\s+([A-Za-z0-9_-]{1,40})$/i);
+  const productPage=content.match(/^\/products(?:\s+(\d{1,2}))?$/i);
+  const pricesPage=content.match(/^\/prices(?:\s+(\d{1,2}))?$/i);
+  if(content==='📦 محصولات'||productPage)return productList(data,Number(productPage?.[1]||1));
+  if(content==='💰 قیمت‌ها'||pricesPage)return priceList(data,Number(pricesPage?.[1]||1));
+  const priceId=content.match(/^\/(?:price|product)\s+([A-Za-z0-9_-]{1,40})$/i);
   if (priceId) {
     const p=data.products.find(p=>p.product_id===priceId[1]);
-    return p ? reply(p.product_name+'\n'+consumerText(p)+
-      '\nبرای مشاهده قیمت تمام‌شده پس از اعمال طرح واجد شرایط، محصول را به /cart اضافه کنید: /add '+p.product_id+' 1')
+    return p ? reply('📦 '+p.product_name+'\n'+
+      (p.units_per_pack?'تعداد در باکس: '+fmt(p.units_per_pack)+'\n':'')+
+      (p.shelf_life_months?'مدت ماندگاری ثبت‌شده: '+fmt(p.shelf_life_months)+' ماه\n':'')+
+      (p.variants?.length?'طعم‌ها: '+p.variants.join('، ')+'\n':'')+
+      consumerText(p)+'\n'+boxBaseText(p)+
+      '\nمحاسبه شرایط طرح در سبد: /add '+p.product_id+' 1')
       : reply('محصول عمومی تأییدشده با این شناسه پیدا نشد.');
   }
   if(content==='🏷 طرح‌های عمومی'||content==='/plans')return planList(data);

@@ -51,7 +51,7 @@ const ids=(items,data)=>eligiblePlans(items,data).map(x=>x.plan.plan_id);
 test('default DRAFT rows, missing date, unpublished product and unmapped link stay private',()=>{
   const raw=seed();
   raw.Discount_Plans[0]={...raw.Discount_Plans[0],approved_for_public:'FALSE'};
-  raw.Discount_Plans[1]={...raw.Discount_Plans[1],valid_to:''};
+  raw.Discount_Plans[1]={...raw.Discount_Plans[1],valid_from:''};
   raw.Products[0]={...raw.Products[0],publish_status:'DRAFT'};
   raw.Product_Plans=raw.Product_Plans.filter(x=>!(x.product_id==='ORG'&&x.plan_id==='D003'));
   const data=publicData(raw,today);
@@ -278,4 +278,51 @@ test('new plan approval gates remain closed for D007-D012 draft sheets',()=>{
   const d=publicData(raw,today);
   assert.equal(d.plans.length,6);
   assert.ok(!d.plans.some(p=>p.plan_id==='D007'||p.plan_id==='D012'));
+});
+
+test('explicitly published plan with verified start and open end is listed, not a false expiry',()=>{
+  const raw=seed();raw.Discount_Plans[0].valid_to='';
+  assert.ok(publicData(raw,'2026-11-08').plans.some(p=>p.plan_id==='D001'));
+  raw.Discount_Plans[0].valid_from='';
+  assert.ok(!publicData(raw,'2026-11-08').plans.some(p=>p.plan_id==='D001'));
+  raw.Discount_Plans[0].valid_from='2026-11-08';
+  raw.Discount_Plans[0].valid_to='2026-10-02';
+  assert.ok(!publicData(raw,'2026-11-08').plans.some(p=>p.plan_id==='D001'));
+});
+test('consumer price is published from approved current start without invented end date',()=>{
+  const raw=seed();
+  Object.assign(raw.Products[0],{consumer_price_irr:'122000',consumer_price_basis:'UNIT',
+    consumer_price_approved_for_public:'TRUE',consumer_price_valid_from:'2026-11-08',
+    consumer_price_valid_to:''});
+  const d=publicData(raw,'2026-11-08');
+  assert.equal(d.products[0].consumer_price.amountIRR,'122000');
+  assert.equal(publicData(raw,'2026-11-07').products[0].consumer_price,null);
+});
+test('base box price independently approved is public, without claiming tax verification',()=>{
+  const raw=seed(),p=raw.Products[2];
+  Object.assign(p,{base_price_per_box:'654107',box_unit_base_price:'109017.83333333333',
+    units_per_pack:'6',base_box_price_approved_for_public:'TRUE'});
+  let d=publicData(raw,today);
+  assert.deepEqual(d.products.find(x=>x.product_id==='ORG').box_base_price,
+    {amountIRR:'654107',basis:'PACK',taxVerified:false});
+  assert.equal(d.products.find(x=>x.product_id==='ORG').final_price_approved_for_public,true);
+  p.final_price_approved_for_public='FALSE';
+  d=publicData(raw,today);
+  assert.equal(d.products.find(x=>x.product_id==='ORG').base_price_irr,null);
+  assert.ok(d.products.find(x=>x.product_id==='ORG').box_base_price);
+  p.base_box_price_approved_for_public='FALSE';
+  assert.equal(publicData(raw,today).products.find(x=>x.product_id==='ORG').box_base_price,null);
+});
+test('only public, parent-approved product variants appear without internal notes',()=>{
+  const raw=seed();
+  raw.Product_Variants=[
+    {product_id:'ORG',variant_name:'فانتا لیمو',approved_for_public:'TRUE',review_notes:'SECRET'},
+    {product_id:'ORG',variant_name:'فانتا پرتقالی',approved_for_public:'FALSE'},
+    {product_id:'CAN',variant_name:'محرمانه',approved_for_public:'TRUE'}
+  ];
+  raw.Products.find(x=>x.product_id==='CAN').approved_for_public='FALSE';
+  const d=publicData(raw,today);
+  assert.deepEqual(d.products.find(x=>x.product_id==='ORG').variants,['فانتا لیمو']);
+  assert.ok(!JSON.stringify(d).includes('SECRET'));
+  assert.ok(!d.products.some(x=>x.product_id==='CAN'));
 });
