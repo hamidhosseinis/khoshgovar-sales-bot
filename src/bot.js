@@ -27,8 +27,12 @@ function consumerText(p) {
 }
 function boxBaseText(p) {
   if (!p.box_base_price) return 'قیمت پایه باکس: ثبت نشده یا کنترل مبلغ نامعتبر است';
+  const unit=Number(p.box_base_price.unitRawIRR);
   return 'قیمت پایه هر باکس (مبنای شیت): ' + fmt(p.box_base_price.amountIRR) +
-    ' ریال — شمول مالیات تأیید نشده';
+    ' ریال' + (Number.isFinite(unit) && unit>0
+      ? '\\nقیمت پایه هر واحد داخل باکس (تقریبی): '+
+        unit.toLocaleString('fa-IR',{maximumFractionDigits:3})+' ریال'
+      : '') + '\\nشمول مالیات تأیید نشده';
 }
 const pageSize=10;
 function pageOf(data,which,page) {

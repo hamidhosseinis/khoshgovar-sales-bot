@@ -304,7 +304,7 @@ test('base box price independently approved is public, without claiming tax veri
     units_per_pack:'6',base_box_price_approved_for_public:'TRUE'});
   let d=publicData(raw,today);
   assert.deepEqual(d.products.find(x=>x.product_id==='ORG').box_base_price,
-    {amountIRR:'654107',basis:'PACK',taxVerified:false});
+    {amountIRR:'654107',unitRawIRR:'109017.83333333333',basis:'PACK',taxVerified:false});
   assert.equal(d.products.find(x=>x.product_id==='ORG').final_price_approved_for_public,true);
   p.final_price_approved_for_public='FALSE';
   d=publicData(raw,today);
