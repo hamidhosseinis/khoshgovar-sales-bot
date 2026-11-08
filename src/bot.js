@@ -38,7 +38,7 @@ function match(content, pattern) {
 const page = value => Number(value);
 const notFound = () => card('این محصول یا طرح برای نمایش عمومی در دسترس نیست.');
 
-export async function botReply(update, env, requestFetch = fetch) {
+export async function botReply(update, env, requestFetch = fetch, loadCatalog = sheetCatalog) {
   const cb = update?.callback_query;
   const message = cb?.message || update?.message;
   const user = cb?.from || message?.from;
@@ -50,7 +50,7 @@ export async function botReply(update, env, requestFetch = fetch) {
   if (content === 'menu') return mainMenu();
 
   let data;
-  try { data = await sheetCatalog(env, requestFetch); }
+  try { data = await loadCatalog(env, requestFetch); }
   catch { return card('اتصال به فهرست تأییدشده برقرار نیست.\nاطلاعات تأییدنشده نمایش داده نمی‌شود.'); }
   const findProduct = id => data.products.find(p => p.product_id === id);
   const findPlan = id => data.plans.find(p => p.plan_id === id);
