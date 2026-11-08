@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { botReply } from '../src/bot.js';
 
-const product = (id, name = 'محصول ' + id) => ({
+const product = (id, name = 'نوشابه اورجینال محصول ' + id) => ({
   product_id: id, product_name: name, units_per_pack: '6',
   variants: ['کوکاکولا','فانتا پرتقالی'],
   consumer_price: {amountIRR:'100000',basis:'UNIT'},
@@ -12,7 +12,7 @@ const product = (id, name = 'محصول ' + id) => ({
 const p = Array.from({length:6}, (_,n) => product('P'+String(n+3).padStart(3,'0')));
 p.push(product('P001', 'نوشابه نوستالژیک - کوکاکولا'));
 p.push(product('P002', 'نوشابه نوستالژیک - فانتا پرتقالی'));
-p.push(product('P010', 'نوشابه نوستالژیک'));
+p.push({...product('P010', 'نوشابه نوستالژیک'), category_name:'نوشابه اورجینال'});
 p.push(product('P023','آبمیوه گازدار فرشی دی شیشه 250 سی سی'));
 const data = {
   products:p,
