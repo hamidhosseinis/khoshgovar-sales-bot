@@ -27,17 +27,23 @@ const calls = reply => reply.reply_markup.inline_keyboard.flat()
   .map(x => x.callback_data).filter(Boolean);
 const replyTo = (u,env={}) => botReply(u,env,async()=>{},async()=>data);
 
-test('every catalog entry is reachable with inline pages and text search',async()=>{
+test('catalog entry opens families and every model remains accessible with search',async()=>{
   const list=await replyTo(message('/products'));
-  assert.ok(calls(list).includes('product:P003'));
-  assert.ok(calls(list).includes('products:2'));
+  assert.ok(calls(list).includes('family:original:1'));
+  assert.ok(calls(list).includes('family:sparkling-juice:1'));
+  const models=await replyTo(callback('family:original:1'));
+  assert.ok(calls(models).includes('product:P003'));
+  assert.ok(calls(models).includes('family:original:2'));
+  const second=await replyTo(callback('family:original:2'));
+  assert.ok(calls(second).includes('product:P008'));
   const result=await replyTo(message('فرشی دی'));
   assert.ok(calls(result).includes('product:P023'));
   const detail=await replyTo(callback('product:P023'));
   assert.match(detail.text,/فرشی دی/);
+  assert.ok(calls(detail).includes('family:sparkling-juice:1'));
 });
 test('consolidated nostalgic is a single product with a flavor button',async()=>{
-  const list=await replyTo(message('/products 2'));
+  const list=await replyTo(callback('family:original:2'));
   assert.ok(calls(list).includes('product:P010'));
   assert.ok(!calls(list).includes('product:P001'));
   assert.ok(!calls(list).includes('product:P002'));
