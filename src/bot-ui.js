@@ -47,7 +47,7 @@ function renderToman(numerator, divisor = 10n) {
   const n = BigInt(numerator), whole = n / divisor, fraction = n % divisor;
   const places = divisor.toString().length - 1;
   const decimal = fraction.toString().padStart(places, '0').replace(/0+$/, '');
-  return fa(whole.toLocaleString('en-US')) + (decimal ? '٫' + fa(decimal) : '') + ' تومان';
+  return fa(whole.toLocaleString('en-US').replaceAll(',', '٬')) + (decimal ? '٫' + fa(decimal) : '') + ' تومان';
 }
 export const toman = amountIRR => renderToman(amountIRR);
 export function discountedToman(baseIRR, percent) {
