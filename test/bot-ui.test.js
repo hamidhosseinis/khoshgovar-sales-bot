@@ -15,7 +15,7 @@ const priced = (id, name, base = '654107') => ({
   group_id: 'ORIGINAL_SODA', group_verified: 'TRUE',
 });
 const products = Array.from({ length: 11 }, (_, i) =>
-  priced('P' + String(i + 3).padStart(3, '0'), 'نوشابه محصول ' + (i + 3)));
+  priced('P' + String(i + 3).padStart(3, '0'), 'نوشابه اورجینال محصول ' + (i + 3)));
 const plan = { plan_id: 'D001', plan_name: 'طرح ۱', discount_percent: '10',
   conditions: 'از ۱ تا ۱۰ بسته' };
 const data = { products, plans: [plan],
