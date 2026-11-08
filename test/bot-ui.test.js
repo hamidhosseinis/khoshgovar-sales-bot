@@ -65,7 +65,7 @@ test('discount math converts precise IRR to toman without floating point or inve
   assert.equal(discountedToman('bad', 10), null);
   const quote = planQuote(products[0], plan, data);
   assert.match(quote.text, /۵۸٬۸۶۹٫۶۳ تومان/);
-  assert.match(quote.text, /مالیات\/گردکردن تأیید نشده/);
+  assert.match(quote.text, /مالیات و گردکردن هنوز قطعی نیست/);
   assert.doesNotMatch(quote.text, /ریال|فانتا پرتقالی/);
   const full = finalPriceList(products[0], data);
   assert.match(full.text, /۵۸٬۸۶۹٫۶۳ تومان/);
