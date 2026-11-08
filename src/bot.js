@@ -27,6 +27,7 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
   try { data = mergePublicCatalog(await loadCatalog(env, requestFetch)); }
   catch { return card('اتصال به فهرست تأییدشده برقرار نیست.\nاطلاعات تأییدنشده نمایش داده نمی‌شود.'); }
   const canonical = id => (id === 'P001' || id === 'P002') &&
+    !data.products.some(p => p.product_id === id) &&
     data.products.some(p => p.product_id === 'P010') ? 'P010' : id;
   const findProduct = id => data.products.find(p => p.product_id === canonical(id));
   const findPlan = id => data.plans.find(p => p.plan_id === id);
