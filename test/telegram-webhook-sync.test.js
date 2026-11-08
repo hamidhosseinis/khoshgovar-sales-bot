@@ -51,7 +51,7 @@ test('registers webhook from env once and keeps only fingerprint in D1', async (
   assert.equal(calls.length,1);
   assert.equal(calls[0].request.url,PUBLIC_WEBHOOK_URL);
   assert.equal(calls[0].request.secret_token,e.TELEGRAM_WEBHOOK_SECRET);
-  assert.deepEqual(calls[0].request.allowed_updates,['message']);
+  assert.deepEqual(calls[0].request.allowed_updates,['message', 'callback_query']);
   assert.equal(calls[0].request.drop_pending_updates,false);
   assert.equal(await syncTelegramWebhook(e,send),'already_registered');
   assert.equal(calls.length,1);
