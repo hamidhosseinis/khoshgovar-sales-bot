@@ -1,5 +1,23 @@
 // The evaluator is pure. No unpublished spreadsheet row is ever eligible.
 export function allowed(value) { return String(value ?? '').trim().toUpperCase() === 'TRUE'; }
+function isoDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(value + 'T00:00:00.000Z');
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+// Retail/consumer prices never come from Product_Price_Import automatically.
+// They require row-level publication approval, an explicit unit and valid dates.
+export function publicConsumerPrice(p, today) {
+  if (!allowed(p.consumer_price_approved_for_public) ||
+      !isoDate(p.consumer_price_valid_from) || !isoDate(p.consumer_price_valid_to) ||
+      p.consumer_price_valid_from > today || p.consumer_price_valid_to < today ||
+      !['UNIT', 'PACK'].includes(p.consumer_price_basis) ||
+      !/^[1-9]\d*$/.test(String(p.consumer_price_irr ?? ''))) return null;
+  const amount = BigInt(p.consumer_price_irr);
+  return amount <= BigInt(Number.MAX_SAFE_INTEGER)
+    ? { amountIRR: String(amount), basis: p.consumer_price_basis }
+    : null;
+}
 export function approvedProduct(p) {
   return allowed(p.approved_for_public) && p.publish_status === 'PUBLISHED' &&
     typeof p.product_id === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(p.product_id);
@@ -7,8 +25,7 @@ export function approvedProduct(p) {
 export function approvedPlan(p, today = new Date().toISOString().slice(0, 10)) {
   return allowed(p.approved_for_public) && allowed(p.is_active) &&
     p.review_status === 'APPROVED' &&
-    /^\d{4}-\d{2}-\d{2}$/.test(p.valid_from || '') &&
-    /^\d{4}-\d{2}-\d{2}$/.test(p.valid_to || '') &&
+    isoDate(p.valid_from) && isoDate(p.valid_to) &&
     p.valid_from <= today && today <= p.valid_to &&
     Number.isInteger(Number(p.discount_percent)) &&
     Number(p.discount_percent) >= 0 && Number(p.discount_percent) <= 100;
@@ -26,12 +43,19 @@ export function inGroup(product, group) {
   return id === group;
 }
 export function publicData(rows, today) {
-  const products = (rows.Products || []).filter(approvedProduct).map(p => ({
-    product_id: p.product_id, product_name: p.product_name, flavor: p.flavor,
-    units_per_pack: p.units_per_pack, shelf_life_months: p.shelf_life_months,
-    base_price_irr: p.base_price_irr, base_price_basis: p.base_price_basis,
-    category_name: p.category_name, group_id: p.group_id, group_verified: p.group_verified,
-  }));
+  const products = (rows.Products || []).filter(approvedProduct).map(p => {
+    const finalApproved = allowed(p.final_price_approved_for_public);
+    return {
+      product_id: p.product_id, product_name: p.product_name, flavor: p.flavor,
+      units_per_pack: p.units_per_pack, shelf_life_months: p.shelf_life_months,
+      // Never carry an unpublished input price into the public pricing evaluator.
+      base_price_irr: finalApproved ? p.base_price_irr : null,
+      base_price_basis: finalApproved ? p.base_price_basis : null,
+      final_price_approved_for_public: finalApproved,
+      consumer_price: publicConsumerPrice(p, today),
+      category_name: p.category_name, group_id: p.group_id, group_verified: p.group_verified,
+    };
+  });
   const plans = (rows.Discount_Plans || []).filter(p => approvedPlan(p, today)).map(p => ({
     plan_id: p.plan_id, plan_name: p.plan_name, discount_percent: p.discount_percent,
     conditions: p.conditions, quantity_rule: p.quantity_rule, max_multiplier: p.max_multiplier,
@@ -100,19 +124,27 @@ export function eligiblePlans(cart, data) {
 export function monetaryEvaluation(eligible, env) {
   if (env?.PRICE_POLICY_APPROVED !== 'true' || env?.ROUNDING_RULE !== 'HALF_UP_IRR') return null;
   let saving = 0n, total = 0n;
+  const itemPrices = [];
   const discount = BigInt(eligible.plan.discount_percent);
   for (const item of eligible.items) {
     const p = item.product;
-    if (p.base_price_basis !== 'PACK_WITH_TAX' ||
+    if (p.final_price_approved_for_public !== true ||
+        p.base_price_basis !== 'PACK_WITH_TAX' ||
         !/^[1-9]\d*$/.test(String(p.base_price_irr)) ||
         BigInt(p.base_price_irr) > BigInt(Number.MAX_SAFE_INTEGER)) return null;
     const base = BigInt(p.base_price_irr);
+    // Approved HALF_UP_IRR rule: round per pack, then multiply by pack count.
     const discounted = (base * (100n - discount) + 50n) / 100n;
-    total += discounted * BigInt(item.qty);
+    const lineTotal = discounted * BigInt(item.qty);
+    total += lineTotal;
     saving += (base - discounted) * BigInt(item.qty);
+    itemPrices.push({
+      product_id: p.product_id, qty: item.qty,
+      finalPricePerPackIRR: String(discounted), lineTotalIRR: String(lineTotal),
+    });
   }
   if (total > BigInt(Number.MAX_SAFE_INTEGER) || saving > BigInt(Number.MAX_SAFE_INTEGER)) return null;
-  return {totalIRR:String(total), savingIRR:String(saving)};
+  return {totalIRR:String(total), savingIRR:String(saving), itemPrices};
 }
 export function bestPlan(cart, data, env) {
   const list = eligiblePlans(cart, data).map(x => ({...x, money: monetaryEvaluation(x, env)}));
