@@ -1,5 +1,6 @@
 import { publicReply } from './messages.js';
 import { botReply } from './bot.js';
+import { card } from './bot-ui.js';
 import { consultationReply, isConsultationRequest } from './consultation.js';
 import { syncTelegramWebhook } from './telegram-webhook-sync.js';
 
@@ -126,7 +127,8 @@ export async function handleRequest(request, env, sendFetch = fetch) {
     const reply = isConsultationRequest(content)
       ? consultationReply()
       : (env.GOOGLE_SERVICE_ACCOUNT_JSON && env.SALES_SPREADSHEET_ID)
-        ? await botReply(update, env, sendFetch) : publicReply(message, env);
+        ? await botReply(update, env, sendFetch)
+        : callback ? card('اطلاعات عمومی بات فعلاً در دسترس نیست.') : publicReply(message, env);
     if (!reply) return response('OK');
     if (callback) {
       await editTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id,
