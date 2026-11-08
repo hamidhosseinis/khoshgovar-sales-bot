@@ -79,22 +79,33 @@ export function verified(p) { return allowed(p.group_verified); }
 export function inGroup(product, group) {
   if (!verified(product)) return false;
   const id = String(product.group_id || '');
-  const category = String(product.category_name || '').trim();
-  const name = String(product.product_name || '').trim();
-  const original = id === 'ORIGINAL_SODA';
-  const canada = id === 'CANADA_SODA';
+  // Secondary recognition is exclusion-only for complement groups: a wrong
+  // group_id must not turn an original/Canada soda or water/milk into "variety".
+  const normalize = value => String(value || '').replace(/‌/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+  const category = normalize(product.category_name);
+  const name = normalize(product.product_name);
+  const originalNamed = category.includes('نوشابه اورجینال') ||
+    name.includes('نوشابه اورجینال');
+  const canadaNamed = category.includes('نوشابه کانادا') ||
+    name.includes('نوشابه کانادا');
+  // Conflicting soda-family labels are never grounds for a customer quote.
+  if ((id === 'ORIGINAL_SODA' && canadaNamed) ||
+      (id === 'CANADA_SODA' && originalNamed)) return false;
+  const original = id === 'ORIGINAL_SODA' || originalNamed;
+  const canada = id === 'CANADA_SODA' || canadaNamed;
   const soda = original || canada || id === 'SODA_ALL' ||
-    (category.includes('نوشابه') && id !== 'NON_SODA');
-  // A group must first be approved for this product (group_verified).
-  // Secondary checks cover verified, explicitly labelled water/milk items.
+    category.includes('نوشابه') || /^نوشابه(?:\s|$)/.test(name);
+  // "آبمیوه" is not plain water; require a word boundary after "آب".
   const water = id === 'DASANI_WATER' || id === 'WATER_ALL' ||
-    category === 'آب' || /^آب دسانی(?:\s|$)/.test(name);
+    category === 'آب' || /^آب(?:\s|$)/.test(name);
   const milk = id === 'MILK' || category === 'شیر' || /^شیر(?:\s|$)/.test(name);
   const doogh = id === 'DOOGH' || category === 'دوغ' || /^دوغ(?:\s|$)/.test(name);
   if (group === 'SODA_ALL') return soda;
   if (group === 'WATER_ALL') return water;
   if (group === 'NON_SODA') return !soda;
-  if (group === 'NON_SODA_NON_DASANI') return !soda && id !== 'DASANI_WATER';
+  if (group === 'NON_SODA_NON_DASANI') return !soda && id !== 'DASANI_WATER' &&
+    !/^آب دسانی(?:\s|$)/.test(name);
   if (group === 'DOOGH_MILK') return doogh || milk;
   if (group === 'DIVERSITY_EXCL_CORE') return !original && !canada && !water && !milk;
   if (group === 'ORIGINAL_CANADA_COMBINED') return original || canada;
