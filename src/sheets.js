@@ -2,10 +2,12 @@ import { publicData } from './engine.js';
 
 // Google Cloud service-account must be shared on the spreadsheet as a reader.
 // The JSON credential is a Cloudflare secret, never a source file or customer value.
+// The canonical workbook now embeds variants_json in Products and no longer
+// contains a Product_Variants tab. Referencing a deleted tab makes the entire
+// Sheets values:batchGet request fail, including the published product list.
 const TABS = {
-  Products:'A1:W501', Discount_Plans:'A1:L201', Product_Plans:'A1:E1001',
+  Products:'A1:U1000', Discount_Plans:'A1:L201', Product_Plans:'A1:E1001',
   Plan_Requirements:'A1:I501', Plan_Discount_Targets:'A1:E501',
-  Product_Variants:'A1:F120',
 };
 let tokenCache = null;
 let dataCache = null;
