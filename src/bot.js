@@ -1,5 +1,4 @@
 import { sheetCatalog } from './sheets.js';
-import { approvedProduct } from './engine.js';
 import {
   card, welcome, mainMenu, productList, priceList, productDetail, unitDetail,
   variantsList, planList, planDetail, productPlanList, cartSummary, cartItems,
@@ -137,8 +136,8 @@ export async function botReply(update, env, requestFetch = fetch) {
     if (!Number.isSafeInteger(qty) || qty < 1 || qty > maxQty)
       return card('تعداد مجاز بین ۱ تا ۱۰٬۰۰۰ بسته است.');
     const p = findProduct(id);
-    if (!p || !approvedProduct({ ...p, approved_for_public: 'TRUE', publish_status: 'PUBLISHED' }))
-      return notFound();
+    // sheetCatalog already returns only rows approved for public release.
+    if (!p) return notFound();
     const done = await changeCart(env.CART_DB, chatId, id, action === 'add' ? qty : -qty);
     if (!done) return card('تعداد درخواستی از سقف مجاز سبد بیشتر است.');
     const cart = await cartFor(env.CART_DB, chatId);
