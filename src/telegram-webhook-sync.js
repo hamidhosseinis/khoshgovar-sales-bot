@@ -7,7 +7,8 @@ export const PUBLIC_WEBHOOK_URL =
 
 async function configurationFingerprint(env) {
   const data = new TextEncoder().encode([
-    PUBLIC_WEBHOOK_URL, env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_WEBHOOK_SECRET
+    PUBLIC_WEBHOOK_URL, env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_WEBHOOK_SECRET,
+    'allowed_updates:message,callback_query'
   ].join('\n'));
   const sha = new Uint8Array(await crypto.subtle.digest('SHA-256', data));
   return Array.from(sha, x => x.toString(16).padStart(2, '0')).join('');
@@ -35,7 +36,7 @@ export async function syncTelegramWebhook(env, sendFetch = fetch) {
       body: JSON.stringify({
         url: PUBLIC_WEBHOOK_URL,
         secret_token: env.TELEGRAM_WEBHOOK_SECRET,
-        allowed_updates: ['message'],
+        allowed_updates: ['message', 'callback_query'],
         drop_pending_updates: false
       })
     });

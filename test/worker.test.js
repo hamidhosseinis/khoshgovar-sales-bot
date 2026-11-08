@@ -54,11 +54,11 @@ test('public start message contains no unapproved prices', async () => {
   const { calls, fetchMock } = fakeSender();
   const res = await handleRequest(makeRequest(), env, fetchMock);
   assert.equal(res.status, 200);
-  assert.equal(calls.length, 2);
-  assert.match(calls[0].data.text, /هیچ قیمت یا طرحی/);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].data.text, /به دستیار فروش خوشگوار/);
+  assert.ok(calls[0].data.text.split('\\n').length <= 4);
   assert.ok(calls[0].data.reply_markup.keyboard.length > 0);
   assert.ok(calls[0].data.reply_markup.keyboard.flat().some(b => b.text === '💬 مشاوره'));
-  assert.equal(calls[1].data.reply_markup.inline_keyboard[0][0].url, 'https://t.me/Hamidhosseinis');
 });
 test('consultation shortcut opens the public Telegram chat URL without Sheets or D1', async () => {
   const { calls, fetchMock } = fakeSender();
@@ -99,7 +99,7 @@ test('admin command only acknowledges admin for verified private ID; no admin op
   await handleRequest(makeRequest(update('/admin', 123)), { ...env, ADMIN_TELEGRAM_USER_ID: '123' }, fetchMock);
   assert.match(calls[0].data.text, /امکانات مدیریت هنوز فعال نشده‌اند/);
 });
-test('group messages and callbacks are ignored', async () => {
+test('group messages and malformed callbacks are ignored', async () => {
   const { calls, fetchMock } = fakeSender();
   await handleRequest(makeRequest(update('/admin', 123, 'group')), env, fetchMock);
   await handleRequest(makeRequest({ callback_query: { from: { id: 123 }, data: 'admin' } }), env, fetchMock);
@@ -121,4 +121,45 @@ test('Telegram delivery errors are not reflected in response details', async () 
   const res = await handleRequest(makeRequest(), env, failedSender);
   assert.equal(res.status, 502);
   assert.doesNotMatch(await res.text(), /secret/);
+});
+
+function callback(data, fromId = 123) {
+  return { update_id: 2, callback_query: {
+    id: 'SAFE_TEST_CB', data, from: { id: fromId },
+    message: { message_id: 42, chat: { id: 123, type: 'private' } },
+  } };
+}
+test('consultation callback is acknowledged and edited, not sent as a second message', async () => {
+  const { calls, fetchMock } = fakeSender();
+  const res = await handleRequest(makeRequest(callback('💬 مشاوره')), env, fetchMock);
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 2);
+  assert.match(calls[0].endpoint, /answerCallbackQuery$/);
+  assert.equal(calls[0].data.callback_query_id, 'SAFE_TEST_CB');
+  assert.match(calls[1].endpoint, /editMessageText$/);
+  assert.equal(calls[1].data.message_id, 42);
+  assert.equal(calls[1].data.reply_markup.inline_keyboard[0][0].url, 'https://t.me/Hamidhosseinis');
+});
+test('callback by another user is ignored, including cart button actions', async () => {
+  const { calls, fetchMock } = fakeSender();
+  const res = await handleRequest(makeRequest(callback('cart:clear', 444)), env, fetchMock);
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 0);
+});
+test('unchanged Telegram edit does not create a duplicate message', async () => {
+  const calls = [];
+  const sender = async (endpoint, init) => {
+    calls.push({ endpoint, data: JSON.parse(init.body) });
+    if (endpoint.endsWith('/editMessageText')) {
+      return new Response(JSON.stringify({ ok: false, description: 'Bad Request: message is not modified' }), {
+        status: 400, headers: { 'content-type': 'application/json' },
+      });
+    }
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  const res = await handleRequest(makeRequest(callback('💬 مشاوره')), env, sender);
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 2);
 });
