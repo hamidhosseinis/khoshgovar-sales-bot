@@ -51,6 +51,24 @@ test('catalog shows families first, then every published model with per-family p
   assert.ok(callbacks(detail).includes('variants:P003:1'));
   assert.ok(!callbacks(detail).some(x => x.startsWith('add:')));
 });
+test('product detail shows each approved flavor inline instead of hiding them behind a button', () => {
+  const item = {
+    product_id: 'P022',
+    product_name: 'آبمیوه گازدار فرشی دی 1 لیتری',
+    units_per_pack: 6,
+    variants: ['انگور', 'بلوبری', 'موهیتو', 'انبه'],
+    consumer_price: null,
+    box_base_price: null,
+  };
+  const catalog = {...data, products: [item]};
+  const detail = productDetail(item, catalog);
+  assert.match(detail.text, /این محصول شامل طعم‌های زیر است:\nانگور، بلوبری، موهیتو، انبه/);
+  assert.ok(callbacks(detail).includes('variants:P022:1'));
+  assert.match(productDetail(item, catalog, true).text, /انگور، بلوبری، موهیتو، انبه/);
+  const privateItem = {...item, variants: []};
+  assert.doesNotMatch(productDetail(privateItem, {...catalog, products:[privateItem]}).text,
+    /انگور|بلوبری|موهیتو|انبه|شامل طعم/);
+});
 test('price list uses toman, not rial', () => {
   const view = priceList(data);
   assert.match(keys(view)[0].text, /تومان/);
