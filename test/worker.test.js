@@ -54,9 +54,30 @@ test('public start message contains no unapproved prices', async () => {
   const { calls, fetchMock } = fakeSender();
   const res = await handleRequest(makeRequest(), env, fetchMock);
   assert.equal(res.status, 200);
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
   assert.match(calls[0].data.text, /هیچ قیمت یا طرحی/);
   assert.ok(calls[0].data.reply_markup.keyboard.length > 0);
+  assert.ok(calls[0].data.reply_markup.keyboard.flat().some(b => b.text === '💬 مشاوره'));
+  assert.equal(calls[1].data.reply_markup.inline_keyboard[0][0].url, 'https://t.me/Hamidhosseinis');
+});
+test('consultation shortcut opens the public Telegram chat URL without Sheets or D1', async () => {
+  const { calls, fetchMock } = fakeSender();
+  const brokenSheetsEnv = {
+    ...env, GOOGLE_SERVICE_ACCOUNT_JSON: 'invalid', SALES_SPREADSHEET_ID: 'not-connected',
+  };
+  const res = await handleRequest(makeRequest(update('💬 مشاوره')), brokenSheetsEnv, fetchMock);
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].data.text, /مشاوره/);
+  assert.deepEqual(calls[0].data.reply_markup.inline_keyboard, [[{
+    text: '💬 گفت‌وگوی مستقیم با مشاور', url: 'https://t.me/Hamidhosseinis',
+  }]]);
+});
+test('consultation command remains accessible in public fallback mode', async () => {
+  const { calls, fetchMock } = fakeSender();
+  await handleRequest(makeRequest(update('/consult')), env, fetchMock);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].data.reply_markup.inline_keyboard[0][0].url, 'https://t.me/Hamidhosseinis');
 });
 test('pricing menu denies unapproved calculations', async () => {
   const { calls, fetchMock } = fakeSender();
