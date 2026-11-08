@@ -42,7 +42,7 @@ const targetGroups={
 function seed(){
   return {Products:products.map(x=>({...x})),Discount_Plans:plans.map(x=>({...x})),Product_Plans:products.flatMap(p=>
     plans.map(x=>({product_id:p.product_id,plan_id:x.plan_id,is_active:'TRUE',approved_for_public:'TRUE'}))),
-    Plan_Requirements:reqs,
+    Plan_Requirements:reqs.map(r=>({...r})),
     Plan_Discount_Targets:Object.entries(targetGroups).flatMap(([plan_id,groups])=>
       groups.map(group_id=>({plan_id,group_id})))};
 }
