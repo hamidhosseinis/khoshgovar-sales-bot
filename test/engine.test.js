@@ -136,3 +136,54 @@ test('invalid calendar dates cannot approve a plan',()=>{
   raw.Discount_Plans[0].valid_from='2026-11-31';
   assert.ok(!publicData(raw,today).plans.some(x=>x.plan_id==='D001'));
 });
+
+test('base_price_per_box overrides the older base price and discounts the exact box amount',()=>{
+  const raw=seed();
+  const org=raw.Products.find(x=>x.product_id==='ORG');
+  Object.assign(org,{units_per_pack:'6',base_price_irr:'999999',
+    base_price_per_box:'654107',box_unit_base_price:'109017.83333333333',
+    final_price_approved_for_public:'TRUE',base_price_basis:'PACK_WITH_TAX'});
+  const d=publicData(raw,today);
+  assert.equal(d.products.find(x=>x.product_id==='ORG').base_price_irr,'654107');
+  const offer=bestPlan(cart(['ORG',1]),d,{
+    PRICE_POLICY_APPROVED:'true',ROUNDING_RULE:'HALF_UP_IRR'
+  });
+  assert.equal(offer.winner.plan.plan_id,'D001');
+  assert.equal(offer.winner.money.itemPrices[0].finalPricePerPackIRR,'588696');
+  assert.equal(offer.winner.money.savingIRR,'65411');
+});
+test('integer rounded box unit is tolerated, but cannot replace the exact box amount',()=>{
+  const raw=seed();
+  const org=raw.Products.find(x=>x.product_id==='ORG');
+  Object.assign(org,{units_per_pack:'6',base_price_irr:'',
+    base_price_per_box:'883929',box_unit_base_price:'147322',base_price_basis:'PACK_WITH_TAX'});
+  assert.equal(publicData(raw,today).products.find(x=>x.product_id==='ORG').base_price_irr,'883929');
+  org.box_unit_base_price='147700';
+  assert.equal(publicData(raw,today).products.find(x=>x.product_id==='ORG').base_price_irr,null);
+});
+test('box base cannot be used with missing unit, invalid money, or unapproved tax basis',()=>{
+  const raw=seed(),p=raw.Products.find(x=>x.product_id==='ORG');
+  Object.assign(p,{units_per_pack:'6',base_price_per_box:'654107',
+    box_unit_base_price:'109017.83333333333',base_price_basis:''});
+  let d=publicData(raw,today);
+  assert.equal(d.products.find(x=>x.product_id==='ORG').base_price_irr,null);
+  p.base_price_basis='PACK_WITH_TAX';
+  p.box_unit_base_price='';
+  d=publicData(raw,today);
+  assert.equal(d.products.find(x=>x.product_id==='ORG').base_price_irr,null);
+  p.box_unit_base_price='109017.83333333333';
+  p.base_price_per_box='654107.5';
+  d=publicData(raw,today);
+  assert.equal(d.products.find(x=>x.product_id==='ORG').base_price_irr,null);
+  p.base_price_per_box='654107';
+  p.final_price_approved_for_public='FALSE';
+  d=publicData(raw,today);
+  assert.equal(d.products.find(x=>x.product_id==='ORG').base_price_irr,null);
+});
+test('source-like 24-pack fractional unit formula agrees with integer box base',()=>{
+  const raw=seed(),p=raw.Products.find(x=>x.product_id==='ORG');
+  Object.assign(p,{units_per_pack:'24',base_price_per_box:'1178573',
+    box_unit_base_price:'49107.208333333336',base_price_irr:'',
+    base_price_basis:'PACK_WITH_TAX'});
+  assert.equal(publicData(raw,today).products.find(x=>x.product_id==='ORG').base_price_irr,'1178573');
+});

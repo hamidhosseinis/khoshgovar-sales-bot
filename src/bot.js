@@ -91,7 +91,7 @@ function cartText(items,data,env){
         ' | جمع اقلام مشمول طرح: '+fmt(evaluation.winner.money.totalIRR)+' ریال');
       for (const x of evaluation.winner.money.itemPrices) {
         const p = products.get(x.product_id);
-        lines.push('↳ '+p.product_name+': هر بسته '+fmt(x.finalPricePerPackIRR)+
+        lines.push('↳ '+p.product_name+': قیمت پس از کسر تخفیف از پایه باکس، هر بسته '+fmt(x.finalPricePerPackIRR)+
           ' ریال | جمع '+fmt(x.qty)+' بسته: '+fmt(x.lineTotalIRR)+' ریال');
       }
       lines.push('مجموع فوق فقط اقلام مشمول همین طرح را دربرمی‌گیرد، نه اقلام دیگر سبد.');
