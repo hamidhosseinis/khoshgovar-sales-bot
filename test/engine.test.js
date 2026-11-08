@@ -6,7 +6,8 @@ const today='2026-11-06';
 function product(id,group,base=''){
   return {product_id:id,product_name:id,group_id:group,group_verified:'TRUE',
     publish_status:'PUBLISHED',approved_for_public:'TRUE',base_price_irr:base,
-    base_price_basis:base?'PACK_WITH_TAX':''};
+    base_price_basis:base?'PACK_WITH_TAX':'',
+    final_price_approved_for_public:base?'TRUE':'FALSE'};
 }
 function plan(id,percent,max=''){
   return {plan_id:id,plan_name:id,discount_percent:String(percent),max_multiplier:max,
@@ -91,4 +92,47 @@ test('no plan stacking or partial exact-step allocation',()=>{
   assert.ok(!ids(cart(['ORG',11],['OTHER',3]),d).includes('D003'));
   const x=bestPlan(cart(['CAN',11],['ORG',4],['OTHER',1]),d,{});
   assert.equal(x.winner,null);
+});
+
+test('consumer price requires explicit approval, valid dates, and a declared unit',()=>{
+  const raw=seed();
+  Object.assign(raw.Products[0],{consumer_price_irr:'95000',consumer_price_basis:'UNIT',
+    consumer_price_approved_for_public:'TRUE',consumer_price_valid_from:'2026-11-01',
+    consumer_price_valid_to:'2026-11-30'});
+  assert.deepEqual(publicData(raw,today).products[0].consumer_price,{amountIRR:'95000',basis:'UNIT'});
+  raw.Products[0].consumer_price_approved_for_public='FALSE';
+  assert.equal(publicData(raw,today).products[0].consumer_price,null);
+  raw.Products[0].consumer_price_approved_for_public='TRUE';
+  raw.Products[0].consumer_price_valid_to='2026-11-05';
+  assert.equal(publicData(raw,today).products[0].consumer_price,null);
+  raw.Products[0].consumer_price_valid_to='2026-11-30';
+  raw.Products[0].consumer_price_basis='';
+  assert.equal(publicData(raw,today).products[0].consumer_price,null);
+});
+test('unapproved buying price is suppressed even when plan is valid and global policy is enabled',()=>{
+  const raw=seed();
+  raw.Products[0].final_price_approved_for_public='FALSE';
+  const d=publicData(raw,today);
+  assert.equal(d.products[0].base_price_irr,null);
+  assert.equal(bestPlan(cart(['CAN',10],['LEM',5]),d,{
+    PRICE_POLICY_APPROVED:'true',ROUNDING_RULE:'HALF_UP_IRR'
+  }).winner,null);
+});
+test('approved plan returns per-product net price and exact totals in IRR',()=>{
+  const d=publicData(seed(),today);
+  const outcome=bestPlan(cart(['CAN',10],['LEM',5]),d,{
+    PRICE_POLICY_APPROVED:'true',ROUNDING_RULE:'HALF_UP_IRR'
+  });
+  assert.equal(outcome.winner.plan.plan_id,'D005');
+  assert.equal(outcome.winner.money.totalIRR,'1232000');
+  assert.equal(outcome.winner.money.savingIRR,'368000');
+  assert.deepEqual(outcome.winner.money.itemPrices,[
+    {product_id:'CAN',qty:10,finalPricePerPackIRR:'92400',lineTotalIRR:'924000'},
+    {product_id:'LEM',qty:5,finalPricePerPackIRR:'61600',lineTotalIRR:'308000'}
+  ]);
+});
+test('invalid calendar dates cannot approve a plan',()=>{
+  const raw=seed();
+  raw.Discount_Plans[0].valid_from='2026-11-31';
+  assert.ok(!publicData(raw,today).plans.some(x=>x.plan_id==='D001'));
 });

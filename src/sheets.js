@@ -3,7 +3,7 @@ import { publicData } from './engine.js';
 // Google Cloud service-account must be shared on the spreadsheet as a reader.
 // The JSON credential is a Cloudflare secret, never a source file or customer value.
 const TABS = {
-  Products:'A1:N501', Discount_Plans:'A1:L201', Product_Plans:'A1:E1001',
+  Products:'A1:T501', Discount_Plans:'A1:L201', Product_Plans:'A1:E1001',
   Plan_Requirements:'A1:I501', Plan_Discount_Targets:'A1:E501',
 };
 let tokenCache = null;
