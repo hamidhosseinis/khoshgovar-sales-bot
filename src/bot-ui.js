@@ -75,15 +75,79 @@ function pricedProducts(data) {
 function compatiblePlans(p, data) {
   return data.plans.filter(plan => planAppliesToProduct(p, plan, data));
 }
+
+const catalogRules = [
+  { id: 'original', name: 'نوشابه اورجینال', test: n => /^نوشابه اورجینال(?: |$)/.test(n) },
+  { id: 'canada', name: 'نوشابه کانادا', test: n => /^نوشابه کانادا(?: |$)/.test(n) },
+  { id: 'doogh', name: 'دوغ', test: n => /^دوغ(?: |$)/.test(n) },
+  { id: 'sparkling-juice', name: 'آبمیوه گازدار', test: n => /^آبمیوه گازدار(?: |$)/.test(n) },
+  { id: 'heyday', name: 'هی دی', test: n => /(?:^| )هی دی(?: |$)/.test(n) },
+  { id: 'dasani', name: 'آب دسانی', test: n => /^آب دسانی(?: |$)/.test(n) },
+  { id: 'lemonade', name: 'لیموناد', test: n => /^لیموناد(?: |$)/.test(n) },
+  { id: 'milk', name: 'شیر', test: n => /^شیر(?: |$)/.test(n) },
+  { id: 'soda', name: 'سودا', test: n => /^سودا(?: |$)/.test(n) },
+  { id: 'energy', name: 'انرژی‌زا', test: n => /^انرژی ?زا(?: |$)/.test(n) },
+  { id: 'ludvig', name: 'Ludvig', test: n => /^ludvig(?: |$)/i.test(n) },
+  { id: 'oreng', name: 'Oreng', test: n => /^oreng(?: |$)/i.test(n) },
+  { id: 'other-soda', name: 'سایر نوشابه‌ها', test: n => /^نوشابه(?: |$)/.test(n) },
+  { id: 'other', name: 'سایر محصولات', test: () => true },
+];
+const normalizeCatalogName = value => String(value || '')
+  .replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/\u200c/g, ' ')
+  .replace(/\s+/g, ' ').trim();
+function catalogFamilyId(p) {
+  const n = normalizeCatalogName(p.product_name);
+  if (!n) return null;
+  // Nostalgic is listed as an original soda in the approved source catalog.
+  // Category metadata is only used for this unambiguous case; it never overrides
+  // conflicting product names (e.g. an original soda tagged as Canada).
+  if (/^نوشابه نوستالژیک(?: |$)/.test(n) &&
+      normalizeCatalogName(p.category_name) === 'نوشابه اورجینال') return 'original';
+  return catalogRules.find(rule => rule.test(n)).id;
+}
+// Family navigation only groups already-public products. These display-only
+// families never grant plan eligibility or bypass group_verified checks.
+export function productFamilies(data) {
+  const groups = new Map(catalogRules.map(rule => [rule.id, {
+    id: rule.id, name: rule.name, items: [],
+  }]));
+  for (const p of data.products) {
+    const id = catalogFamilyId(p);
+    if (id) groups.get(id).items.push(p);
+  }
+  return [...groups.values()].filter(group => group.items.length);
+}
 export function productList(data, page = 1) {
-  if (!data.products.length) return card('📦 محصول منتشرشده‌ای موجود نیست.');
-  const v = pageOf(data.products, page);
+  const families = productFamilies(data);
+  if (!families.length) return card('📦 محصول منتشرشده‌ای موجود نیست.');
+  const v = pageOf(families, page);
   if (!v) return card('این صفحه در دسترس نیست.');
-  return card('📦 محصولات | ' + fmt(page) + ' از ' + fmt(v.pages) +
-    '\nبرای دیدن مشخصات، محصول را انتخاب کنید.', [
-    ...v.items.map(p => [key(p.product_name, 'product:' + p.product_id)]),
+  return card('📦 خانواده‌های کالایی' +
+    (v.pages > 1 ? ' | ' + fmt(page) + ' از ' + fmt(v.pages) : '') +
+    '\nخانواده موردنظر را انتخاب کنید.', [
+    ...v.items.map(f => [key(f.name, 'family:' + f.id + ':1')]),
     ...(pageButtons(page, v.pages, 'products').length ? [pageButtons(page, v.pages, 'products')] : []),
-    [key('🔎 جستجوی نام محصول', 'search')],
+    [key('🔎 جستجوی محصول', 'search')],
+  ]);
+}
+export function productFamilyList(data, familyId, page = 1) {
+  const families = productFamilies(data);
+  const index = families.findIndex(f => f.id === familyId);
+  if (index < 0) return card('این خانواده کالایی در دسترس نیست.');
+  const family = families[index], v = pageOf(family.items, page);
+  if (!v) return card('این صفحه در دسترس نیست.');
+  return card('📦 ' + family.name +
+    (v.pages > 1 ? ' | ' + fmt(page) + ' از ' + fmt(v.pages) : '') +
+    '\nمدل موردنظر را انتخاب کنید.', [
+    ...v.items.map(p => {
+      const name = normalizeCatalogName(p.product_name);
+      const label = name.startsWith(family.name + ' ')
+        ? name.slice(family.name.length + 1) : name;
+      return [key(label, 'product:' + p.product_id)];
+    }),
+    ...(pageButtons(page, v.pages, 'family:' + family.id).length
+      ? [pageButtons(page, v.pages, 'family:' + family.id)] : []),
+    [key('🔙 خانواده‌ها', 'products:' + (Math.floor(index / PAGE_SIZE) + 1))],
   ]);
 }
 export function priceList(data, page = 1) {
@@ -105,14 +169,18 @@ export function productDetail(p, data, fromPrices = false) {
   if (baseText(p)) lines.push(baseText(p));
   if (!consumerText(p) && !baseText(p)) lines.push('قیمت عمومی برای این محصول ثبت نشده است.');
   if (p.variants?.length > 1) lines.push('🎨 قیمت برای تمام طعم‌های این محصول یکسان است.');
-  const index = (fromPrices ? pricedProducts(data) : data.products)
-    .findIndex(x => x.product_id === p.product_id);
+  const pricedIndex = pricedProducts(data).findIndex(x => x.product_id === p.product_id);
+  const family = productFamilies(data).find(f =>
+    f.items.some(x => x.product_id === p.product_id));
+  const familyIndex = family?.items.findIndex(x => x.product_id === p.product_id) ?? -1;
+  const back = fromPrices ? 'prices:' + (Math.floor(pricedIndex / PAGE_SIZE) + 1)
+    : family ? 'family:' + family.id + ':' + (Math.floor(familyIndex / PAGE_SIZE) + 1)
+      : 'products:1';
   return card(lines.join('\n'), [
     [key('💰 قیمت تمام‌شده', 'final:' + p.product_id + ':1')],
     [key('🏷 طرح‌های محصول', 'product-plans:' + p.product_id + ':1'),
       ...(p.variants?.length ? [key('🎨 طعم‌ها', 'variants:' + p.product_id + ':1')] : [])],
-    [key('🔙 بازگشت', (fromPrices ? 'prices:' : 'products:') +
-      (Math.floor(index / PAGE_SIZE) + 1))],
+    [key('🔙 بازگشت', back)],
   ]);
 }
 export function variantsList(p, page = 1) {

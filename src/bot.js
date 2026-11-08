@@ -1,6 +1,6 @@
 import { sheetCatalog } from './sheets.js';
 import {
-  card, welcome, mainMenu, mergePublicCatalog, productList, priceList,
+  card, welcome, mainMenu, mergePublicCatalog, productList, productFamilyList, priceList,
   productDetail, unitDetail, variantsList, planList, planDetail,
   productPlanList, planProducts, planQuote, finalPriceList, searchPrompt, searchResults,
 } from './bot-ui.js';
@@ -37,6 +37,8 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
   if ((m = match(content, '^products:([1-9]\\d{0,2})$')) ||
       (m = match(content, '^/products\\s+([1-9]\\d{0,2})$')))
     return productList(data, page(m[1]));
+  if ((m = match(content, '^family:([a-z0-9-]{1,40}):([1-9]\\d{0,2})$')))
+    return productFamilyList(data, m[1], page(m[2]));
 
   if (['💰 لیست قیمت', '💰 قیمت‌ها', '/prices'].includes(content)) return priceList(data);
   if ((m = match(content, '^prices:([1-9]\\d{0,2})$')) ||
