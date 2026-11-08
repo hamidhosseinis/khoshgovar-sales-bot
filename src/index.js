@@ -51,16 +51,31 @@ async function readJsonBounded(request) {
   return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
 }
 
-async function sendTelegramMessage(botToken, chatId, reply, sendFetch) {
-  // Never log the Bot API URL: Telegram bot token appears in the path.
-  const apiResponse = await sendFetch('https://api.telegram.org/bot' + botToken + '/sendMessage', {
+async function telegramCall(botToken, method, payload, sendFetch) {
+  // Never log Telegram URLs or bodies: the bot token is embedded in the URL.
+  const res = await sendFetch('https://api.telegram.org/bot' + botToken + '/' + method, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, ...reply, text: String(reply.text).slice(0, 3900) }),
+    body: JSON.stringify(payload),
   });
-  if (!apiResponse.ok) throw new Error('telegram_send_failed');
-  const result = await apiResponse.json();
-  if (result?.ok !== true) throw new Error('telegram_send_failed');
+  let body;
+  try { body = await res.json(); } catch { throw new Error('telegram_invalid_response'); }
+  if (res.ok && body?.ok === true) return 'ok';
+  if (method === 'editMessageText' && res.status === 400) {
+    if (/message is not modified/i.test(body?.description || '')) return 'unchanged';
+    if (/message (can't be edited|to edit not found)/i.test(body?.description || '')) return 'cannot_edit';
+  }
+  throw new Error('telegram_api_failed');
+}
+async function sendTelegramMessage(botToken, chatId, reply, sendFetch) {
+  return telegramCall(botToken, 'sendMessage',
+    { chat_id: chatId, ...reply, text: String(reply.text).slice(0, 3900) }, sendFetch);
+}
+async function editTelegramMessage(botToken, chatId, messageId, reply, sendFetch) {
+  const result = await telegramCall(botToken, 'editMessageText',
+    { chat_id: chatId, message_id: messageId, ...reply, text: String(reply.text).slice(0, 3900) },
+    sendFetch);
+  if (result === 'cannot_edit') await sendTelegramMessage(botToken, chatId, reply, sendFetch);
 }
 
 export async function handleRequest(request, env, sendFetch = fetch) {
@@ -88,30 +103,40 @@ export async function handleRequest(request, env, sendFetch = fetch) {
     return response('Invalid update', error instanceof RangeError ? 413 : 400);
   }
 
-  // Only handle direct chats; no group messages, channel messages, or callbacks.
-  // Unknown future Telegram update types are acknowledged but never authorized.
-  const message = update?.message;
+  // Only private chats are eligible. A callback must belong to the same
+  // private user; never process buttons from groups or other users.
+  const callback = update?.callback_query;
+  const message = callback?.message || update?.message;
+  const user = callback?.from || message?.from;
   if (!message || message.chat?.type !== 'private' ||
       !Number.isSafeInteger(message.chat?.id) ||
-      !Number.isSafeInteger(message.from?.id)) return response('OK');
+      !Number.isSafeInteger(user?.id) ||
+      message.chat.id !== user.id) return response('OK');
 
   try {
-    const content = typeof message.text === 'string' ? message.text.trim() : '';
-    // Public consultation must remain available even when Sheets or D1 are unavailable.
-    // A Telegram reply keyboard cannot open URLs itself; the inline button can.
+    const content = callback?.data || (typeof message.text === 'string' ? message.text.trim() : '');
+    if (callback) {
+      if (typeof callback.id !== 'string' || !Number.isSafeInteger(message.message_id))
+        return response('OK');
+      // Stop Telegram's loading indicator promptly, before fetching Sheets.
+      await telegramCall(env.TELEGRAM_BOT_TOKEN, 'answerCallbackQuery',
+        { callback_query_id: callback.id }, sendFetch);
+    }
+    // Consultation stays reachable even if the Sheets or D1 integration fails.
     const reply = isConsultationRequest(content)
       ? consultationReply()
       : (env.GOOGLE_SERVICE_ACCOUNT_JSON && env.SALES_SPREADSHEET_ID)
         ? await botReply(update, env, sendFetch) : publicReply(message, env);
     if (!reply) return response('OK');
-    await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id, reply, sendFetch);
-    // Also show a true one-tap URL button on /start, while retaining the main reply keyboard.
-    if (content === '/start') {
-      await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id, consultationReply(), sendFetch);
+    if (callback) {
+      await editTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id,
+        message.message_id, reply, sendFetch);
+    } else {
+      await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id, reply, sendFetch);
     }
     return response('OK');
   } catch {
-    // Telegram will retry the webhook; do not log secrets or customer messages.
+    // Telegram can retry failed updates; never log credentials or message text.
     return response('Temporary failure', 502);
   }
 }
