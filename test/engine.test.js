@@ -42,7 +42,7 @@ const targetGroups={
 function seed(){
   return {Products:products.map(x=>({...x})),Discount_Plans:plans.map(x=>({...x})),Product_Plans:products.flatMap(p=>
     plans.map(x=>({product_id:p.product_id,plan_id:x.plan_id,is_active:'TRUE',approved_for_public:'TRUE'}))),
-    Plan_Requirements:reqs,
+    Plan_Requirements:reqs.map(r=>({...r})),
     Plan_Discount_Targets:Object.entries(targetGroups).flatMap(([plan_id,groups])=>
       groups.map(group_id=>({plan_id,group_id})))};
 }
@@ -186,4 +186,96 @@ test('source-like 24-pack fractional unit formula agrees with integer box base',
     box_unit_base_price:'49107.208333333336',base_price_irr:'',
     base_price_basis:'PACK_WITH_TAX'});
   assert.equal(publicData(raw,today).products.find(x=>x.product_id==='ORG').base_price_irr,'1178573');
+});
+
+function allPlanSeed(){
+  const raw=seed();
+  for(const [id,group] of [
+    ['ENERGY','ENERGY_DRINK'],['DOOGH','DOOGH'],['MILK','MILK'],
+    ['OTHER_WATER','WATER_ALL'],['MALT','DIVERSITY'],['CAN2','CANADA_SODA']
+  ])raw.Products.push(product(id,group,'100000'));
+  const newPlans=[
+    ['D007',33,''],['D008',20,''],['D009',33,''],['D010',25,''],
+    ['D011',12,''],['D012',15,'1']
+  ];
+  const newReqs=[
+    ['D007','ENERGY_DRINK','MINIMUM','',3,''],
+    ['D008','DOOGH_MILK','MINIMUM','',3,''],
+    ['D009','DIVERSITY_EXCL_CORE','MINIMUM','',12,''],
+    ['D010','DIVERSITY_EXCL_CORE','RANGE','',3,10],
+    ['D011','ORIGINAL_CANADA_COMBINED','MINIMUM','',26,''],
+    ['D012','ORIGINAL_SODA','EXACT_MULTIPLE',3,'',''],
+    ['D012','VARIETY_NON_WATER_NON_MILK','EXACT_MULTIPLE',1,'','']
+  ];
+  raw.Discount_Plans.push(...newPlans.map(([id,percent,max])=>plan(id,percent,max)));
+  raw.Plan_Requirements.push(...newReqs.map(([plan_id,group_id,quantity_rule,packs_per_step,min_packs,max_packs])=>({
+    plan_id,group_id,quantity_rule,packs_per_step:String(packs_per_step),
+    min_packs:String(min_packs),max_packs:String(max_packs)
+  })));
+  raw.Plan_Discount_Targets.push(...newReqs.map(([plan_id,group_id])=>({plan_id,group_id})));
+  raw.Product_Plans.push(...raw.Products.flatMap(p=>newPlans.map(([plan_id])=>({
+    product_id:p.product_id,plan_id,is_active:'TRUE',approved_for_public:'TRUE'
+  }))));
+  return raw;
+}
+test('all twelve plan IDs and their percentages are read from approved Discount_Plans',()=>{
+  const d=publicData(allPlanSeed(),today);
+  assert.deepEqual(d.plans.map(p=>[p.plan_id,Number(p.discount_percent)]),[
+    ['D001',10],['D002',13],['D003',15],['D004',16],['D005',23],['D006',20],
+    ['D007',33],['D008',20],['D009',33],['D010',25],['D011',12],['D012',15]
+  ]);
+});
+test('plan D007: approved energy drink requires 3 packs and excludes other groups',()=>{
+  const d=publicData(allPlanSeed(),today);
+  assert.ok(!ids(cart(['ENERGY',2]),d).includes('D007'));
+  assert.ok(ids(cart(['ENERGY',3]),d).includes('D007'));
+  assert.ok(!ids(cart(['DOOGH',3]),d).includes('D007'));
+});
+test('plan D008: milk plus doogh aggregate to 3 packs without double-counting',()=>{
+  const d=publicData(allPlanSeed(),today);
+  assert.ok(ids(cart(['DOOGH',2],['MILK',1]),d).includes('D008'));
+  assert.ok(ids(cart(['MILK',3]),d).includes('D008'));
+  assert.ok(!ids(cart(['DOOGH',1],['MILK',1]),d).includes('D008'));
+});
+test('plans D009 and D010: 3-10 and 12+, excluding original, Canada, water, milk',()=>{
+  const d=publicData(allPlanSeed(),today);
+  assert.ok(ids(cart(['MALT',3]),d).includes('D010'));
+  assert.ok(ids(cart(['MALT',10]),d).includes('D010'));
+  assert.ok(!ids(cart(['MALT',11]),d).includes('D010'));
+  assert.ok(!ids(cart(['MALT',11]),d).includes('D009'));
+  assert.ok(ids(cart(['MALT',12]),d).includes('D009'));
+  assert.ok(ids(cart(['MALT',3],['ENERGY',2]),d).includes('D010'));
+  assert.ok(!ids(cart(['ORG',10],['CAN',10],['OTHER_WATER',10],['MILK',10]),d).includes('D009'));
+  assert.ok(ids(cart(['MALT',12],['ORG',10],['MILK',10]),d).includes('D009'));
+  const eligible=eligiblePlans(cart(['MALT',12],['ORG',10],['MILK',10]),d).find(x=>x.plan.plan_id==='D009');
+  assert.deepEqual(eligible.items.map(x=>x.product_id),['MALT']);
+});
+test('plan D011: 26 boxes total original + Canada, no water, no duplicate count',()=>{
+  const d=publicData(allPlanSeed(),today);
+  assert.ok(!ids(cart(['ORG',12],['CAN',13]),d).includes('D011'));
+  assert.ok(ids(cart(['ORG',12],['CAN',14]),d).includes('D011'));
+  assert.ok(ids(cart(['ORG',26]),d).includes('D011'));
+  assert.ok(!ids(cart(['ORG',25],['WATER',1]),d).includes('D011'));
+});
+test('plan D012: 3 original plus 1 independent eligible pack, no overlap or water/milk',()=>{
+  const d=publicData(allPlanSeed(),today);
+  assert.ok(!ids(cart(['ORG',3]),d).includes('D012'));
+  assert.ok(ids(cart(['ORG',3],['CAN',1]),d).includes('D012'));
+  assert.ok(ids(cart(['ORG',4]),d).includes('D012'));
+  assert.ok(ids(cart(['ORG',3],['ENERGY',1]),d).includes('D012'));
+  assert.ok(!ids(cart(['ORG',3],['MILK',1]),d).includes('D012'));
+  assert.ok(!ids(cart(['ORG',3],['OTHER_WATER',1]),d).includes('D012'));
+  assert.ok(!ids(cart(['ORG',3],['CAN',2]),d).includes('D012'));
+  assert.ok(!ids(cart(['ORG',2],['CAN',2]),d).includes('D012'));
+  const four=eligiblePlans(cart(['ORG',3],['CAN',1]),d).find(x=>x.plan.plan_id==='D012');
+  assert.equal(four.items.reduce((n,x)=>n+x.qty,0),4);
+});
+test('new plan approval gates remain closed for D007-D012 draft sheets',()=>{
+  const raw=allPlanSeed();
+  for(const p of raw.Discount_Plans.filter(p=>Number(p.plan_id.slice(1))>=7)){
+    p.is_active='FALSE';p.approved_for_public='FALSE';p.review_status='DRAFT';p.valid_from='';p.valid_to='';
+  }
+  const d=publicData(raw,today);
+  assert.equal(d.plans.length,6);
+  assert.ok(!d.plans.some(p=>p.plan_id==='D007'||p.plan_id==='D012'));
 });

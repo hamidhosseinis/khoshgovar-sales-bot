@@ -67,13 +67,27 @@ export function approvedPlan(p, today = new Date().toISOString().slice(0, 10)) {
 export function verified(p) { return allowed(p.group_verified); }
 export function inGroup(product, group) {
   if (!verified(product)) return false;
-  const id = product.group_id;
-  const category = String(product.category_name || '');
-  const soda = id === 'ORIGINAL_SODA' || id === 'CANADA_SODA' ||
-    id === 'SODA_ALL' || (category.includes('نوشابه') && id !== 'NON_SODA');
+  const id = String(product.group_id || '');
+  const category = String(product.category_name || '').trim();
+  const name = String(product.product_name || '').trim();
+  const original = id === 'ORIGINAL_SODA';
+  const canada = id === 'CANADA_SODA';
+  const soda = original || canada || id === 'SODA_ALL' ||
+    (category.includes('نوشابه') && id !== 'NON_SODA');
+  // A group must first be approved for this product (group_verified).
+  // Secondary checks cover verified, explicitly labelled water/milk items.
+  const water = id === 'DASANI_WATER' || id === 'WATER_ALL' ||
+    category === 'آب' || /^آب دسانی(?:\s|$)/.test(name);
+  const milk = id === 'MILK' || category === 'شیر' || /^شیر(?:\s|$)/.test(name);
+  const doogh = id === 'DOOGH' || category === 'دوغ' || /^دوغ(?:\s|$)/.test(name);
   if (group === 'SODA_ALL') return soda;
+  if (group === 'WATER_ALL') return water;
   if (group === 'NON_SODA') return !soda;
   if (group === 'NON_SODA_NON_DASANI') return !soda && id !== 'DASANI_WATER';
+  if (group === 'DOOGH_MILK') return doogh || milk;
+  if (group === 'DIVERSITY_EXCL_CORE') return !original && !canada && !water && !milk;
+  if (group === 'ORIGINAL_CANADA_COMBINED') return original || canada;
+  if (group === 'VARIETY_NON_WATER_NON_MILK') return !water && !milk;
   return id === group;
 }
 export function publicData(rows, today) {
@@ -128,6 +142,24 @@ export function qualifies(entries, plan, data) {
   const requirements = data.requirements.filter(r => r.plan_id === plan.plan_id);
   const eligibleEntries = related(entries, plan, data);
   if (!requirements.length || !eligibleEntries.length) return false;
+  // D012 permits one complementary pack from a group that overlaps ORIGINAL_SODA.
+  // Check disjoint physical quantities, not independent counts of overlapping groups.
+  // This protects against falsely treating the same three original packs as 3 + 1.
+  if (plan.plan_id === 'D012') {
+    const primary = requirements.find(r => r.group_id === 'ORIGINAL_SODA');
+    const extra = requirements.find(r => r.group_id === 'VARIETY_NON_WATER_NON_MILK');
+    if (requirements.length !== 2 || !primary || !extra ||
+        primary.quantity_rule !== 'EXACT_MULTIPLE' ||
+        extra.quantity_rule !== 'EXACT_MULTIPLE' ||
+        Number(primary.packs_per_step) !== 3 ||
+        Number(extra.packs_per_step) !== 1 || Number(plan.max_multiplier) !== 1) return false;
+    const total = eligibleEntries.reduce((sum, x) => sum + x.qty, 0);
+    // Four distinct physical packs; at least three must be original soda.
+    // All four must qualify as non-water/non-milk (so one can be assigned to variety).
+    return total === 4 &&
+      groupQty(eligibleEntries, 'ORIGINAL_SODA') >= 3 &&
+      groupQty(eligibleEntries, 'VARIETY_NON_WATER_NON_MILK') === 4;
+  }
   let multiplier = null;
   for (const req of requirements) {
     const actual = groupQty(eligibleEntries, req.group_id);
