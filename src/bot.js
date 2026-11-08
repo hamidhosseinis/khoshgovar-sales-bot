@@ -12,7 +12,11 @@ const keyboard={keyboard:[
 const groupNames={
   ORIGINAL_SODA:'نوشابه اورجینال',CANADA_SODA:'نوشابه کانادا',
   NON_SODA:'محصول غیرنوشابه',NON_SODA_NON_DASANI:'محصول غیرنوشابه و غیردسانی',
-  KHOSH_LEMONADE:'لیموناد خوشگوار',DASANI_WATER:'آب دسانی'
+  KHOSH_LEMONADE:'لیموناد خوشگوار',DASANI_WATER:'آب دسانی',
+  ENERGY_DRINK:'انرژی‌زا',DOOGH_MILK:'دوغ یا شیر',
+  DIVERSITY_EXCL_CORE:'تنوع مجاز به‌جز اورجینال، کانادا، آب و شیر',
+  ORIGINAL_CANADA_COMBINED:'نوشابه اورجینال یا کانادا',
+  VARIETY_NON_WATER_NON_MILK:'تنوع به‌جز آب و شیر'
 };
 function reply(text,extras={}) {return {text,reply_markup:extras.reply_markup||keyboard,...extras};}
 const fmt=n=>Number(n).toLocaleString('fa-IR');
@@ -67,7 +71,7 @@ function productList(data) {
 function planList(data){
   if(!data.plans.length)return reply('در حال حاضر طرح دارای تأیید انتشار و بازه اعتبار ثبت‌شده موجود نیست.');
   const out=['🏷 طرح‌های عمومی در بازه اعتبار اعلام‌شده:'];
-  for(const p of data.plans.slice(0,20))
+  for(const p of data.plans.slice(0,40))
     out.push('• '+p.plan_name+' — '+fmt(p.discount_percent)+'٪\n'+p.conditions);
   out.push('اعمال هر طرح تنها پس از تطبیق محصول، گروه، تعداد و مجوز انتشار انجام می‌شود.');
   return reply(out.join('\n\n'));
@@ -141,6 +145,13 @@ export async function botReply(update,env,requestFetch=fetch){
       : reply('محصول عمومی تأییدشده با این شناسه پیدا نشد.');
   }
   if(content==='🏷 طرح‌های عمومی'||content==='/plans')return planList(data);
+  const selectedPlan=content.match(/^\\/plan\\s+(D\\d{3})$/i);
+  if(selectedPlan){
+    const p=data.plans.find(x=>x.plan_id===selectedPlan[1].toUpperCase());
+    return p?reply('🏷 '+p.plan_name+' — '+fmt(p.discount_percent)+'٪\\n'+p.conditions+
+      '\\nاجرای تخفیف به تطبیق گروه و تعداد بسته‌ها وابسته است.')
+      :reply('این طرح برای نمایش عمومی تأیید یا معتبر نشده است.');
+  }
   if(content==='🛒 سبد خرید'||content==='/cart'){
     const cart=await cartFor(env.CART_DB,chatId);return cartText(cart,data,env);
   }
