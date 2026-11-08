@@ -75,3 +75,13 @@ test('forged callers and unapproved products remain inaccessible',async()=>{
   assert.match((await replyTo(callback('quote:PRIVATE:D001'))).text,/در دسترس نیست/);
   assert.match((await replyTo(callback('quote:P004:D001'))).text,/منتشر نشده/);
 });
+
+test('menu shortcut and old search text button use the inline flow', async () => {
+  const menu = await replyTo(message('/menu'));
+  assert.match(menu.text, /منوی فروش خوشگوار/);
+  assert.ok(calls(menu).includes('products:1'));
+  assert.ok(calls(menu).includes('prices:1'));
+  const search = await replyTo(message('🔎 جستجوی محصول'));
+  assert.match(search.text, /نام محصول را به صورت پیام بنویسید/);
+  assert.ok(calls(search).includes('menu'));
+});

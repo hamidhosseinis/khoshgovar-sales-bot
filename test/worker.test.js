@@ -29,7 +29,10 @@ function fakeSender() {
   const calls = [];
   const fetchMock = async (endpoint, init) => {
     calls.push({ endpoint, data: JSON.parse(init.body) });
-    return new Response(JSON.stringify({ ok: true }), { headers: { 'content-type': 'application/json' } });
+    const result = endpoint.endsWith('/sendMessage') ? { message_id: 12345 } : {};
+    return new Response(JSON.stringify({ ok: true, result }), {
+      headers: { 'content-type': 'application/json' },
+    });
   };
   return { calls, fetchMock };
 }
@@ -54,8 +57,7 @@ test('start removes the old reply keyboard and shows only inline buttons', async
   const { calls, fetchMock } = fakeSender();
   const res = await handleRequest(makeRequest(), env, fetchMock);
   assert.equal(res.status, 200);
-  // Mock does not supply the Telegram message_id, so the inline menu is sent
-  // as a second message. Real Telegram supplies the ID for in-place editing.
+  // The old keyboard is removed first; its message is then edited in place.
   assert.equal(calls.length, 2);
   assert.equal(calls[0].data.reply_markup.remove_keyboard, true);
   assert.equal(calls[1].data.reply_markup.keyboard, undefined);
@@ -89,37 +91,39 @@ test('consultation shortcut opens the public Telegram chat URL without Sheets or
   };
   const res = await handleRequest(makeRequest(update('💬 مشاوره')), brokenSheetsEnv, fetchMock);
   assert.equal(res.status, 200);
-  assert.equal(calls.length, 1);
-  assert.match(calls[0].data.text, /مشاوره/);
-  assert.deepEqual(calls[0].data.reply_markup.inline_keyboard, [[{
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].data.reply_markup.remove_keyboard, true);
+  assert.match(calls[1].data.text, /مشاوره/);
+  assert.deepEqual(calls[1].data.reply_markup.inline_keyboard, [[{
     text: '💬 گفت‌وگوی مستقیم با مشاور', url: 'https://t.me/Hamidhosseinis',
   }]]);
 });
 test('consultation command remains accessible in public fallback mode', async () => {
   const { calls, fetchMock } = fakeSender();
   await handleRequest(makeRequest(update('/consult')), env, fetchMock);
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].data.reply_markup.inline_keyboard[0][0].url, 'https://t.me/Hamidhosseinis');
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].data.reply_markup.remove_keyboard, true);
+  assert.equal(calls[1].data.reply_markup.inline_keyboard[0][0].url, 'https://t.me/Hamidhosseinis');
 });
 test('pricing menu denies unapproved calculations', async () => {
   const { calls, fetchMock } = fakeSender();
   await handleRequest(makeRequest(update('🧮 محاسبه قیمت')), env, fetchMock);
-  assert.match(calls[0].data.text, /فعلاً مبلغی نمایش داده نمی‌شود/);
+  assert.match(calls[1].data.text, /فعلاً مبلغی نمایش داده نمی‌شود/);
 });
 test('admin command denied without explicit administrator ID', async () => {
   const { calls, fetchMock } = fakeSender();
   await handleRequest(makeRequest(update('/admin')), env, fetchMock);
-  assert.equal(calls[0].data.text, 'این بخش در دسترس نیست.');
+  assert.equal(calls[1].data.text, 'این بخش در دسترس نیست.');
 });
 test('admin command denied for another user even if an administrator exists', async () => {
   const { calls, fetchMock } = fakeSender();
   await handleRequest(makeRequest(update('/admin', 123)), { ...env, ADMIN_TELEGRAM_USER_ID: '444' }, fetchMock);
-  assert.equal(calls[0].data.text, 'این بخش در دسترس نیست.');
+  assert.equal(calls[1].data.text, 'این بخش در دسترس نیست.');
 });
 test('admin command only acknowledges admin for verified private ID; no admin operations', async () => {
   const { calls, fetchMock } = fakeSender();
   await handleRequest(makeRequest(update('/admin', 123)), { ...env, ADMIN_TELEGRAM_USER_ID: '123' }, fetchMock);
-  assert.match(calls[0].data.text, /امکانات مدیریت هنوز فعال نشده‌اند/);
+  assert.match(calls[1].data.text, /امکانات مدیریت هنوز فعال نشده‌اند/);
 });
 test('group messages and malformed callbacks are ignored', async () => {
   const { calls, fetchMock } = fakeSender();
@@ -184,4 +188,35 @@ test('unchanged Telegram edit does not create a duplicate message', async () => 
   const res = await handleRequest(makeRequest(callback('💬 مشاوره')), env, sender);
   assert.equal(res.status, 200);
   assert.equal(calls.length, 2);
+});
+
+test('old bottom keyboard text selection is cleared and replaced with inline buttons', async () => {
+  const calls = [];
+  const sender = async (endpoint, init) => {
+    calls.push({ endpoint, data: JSON.parse(init.body) });
+    const result = endpoint.endsWith('sendMessage') ? { message_id: 501 } : {};
+    return new Response(JSON.stringify({ ok: true, result }), {
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  const res = await handleRequest(makeRequest(update('📦 محصولات')), env, sender);
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].data.reply_markup.remove_keyboard, true);
+  assert.match(calls[1].endpoint, /editMessageText$/);
+  assert.equal(calls[1].data.message_id, 501);
+  assert.ok(calls[1].data.reply_markup.inline_keyboard.flat()
+    .some(button => button.callback_data === 'products:1'));
+  assert.equal(calls[1].data.reply_markup.keyboard, undefined);
+});
+test('menu command clears a stale reply keyboard; normal typed text does not spam cleanup', async () => {
+  const { calls, fetchMock } = fakeSender();
+  await handleRequest(makeRequest(update('/menu')), env, fetchMock);
+  assert.equal(calls[0].data.reply_markup.remove_keyboard, true);
+  assert.ok(calls[1].data.reply_markup.inline_keyboard);
+  calls.length = 0;
+  await handleRequest(makeRequest(update('نوشابه')), env, fetchMock);
+  assert.equal(calls.length, 1);
+  assert.ok(calls[0].data.reply_markup.inline_keyboard);
+  assert.equal(calls[0].data.reply_markup.remove_keyboard, undefined);
 });

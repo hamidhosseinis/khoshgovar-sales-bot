@@ -25,6 +25,7 @@ export function publicReply(message, env) {
   switch (content) {
     case '/start':
     case '/help':
+    case '/menu':
       text = TEXT.welcome; break;
     case '📦 محصولات':
       text = TEXT.products; break;

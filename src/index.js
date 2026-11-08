@@ -7,6 +7,17 @@ import { syncTelegramWebhook } from './telegram-webhook-sync.js';
 const WEBHOOK_PATH = '/telegram/webhook';
 const MAX_BODY_BYTES = 64 * 1024;
 
+// A legacy ReplyKeyboardMarkup can survive client updates. Remove it when
+// the customer sends a command or taps an old bottom-keyboard text button.
+// Inline callbacks never trigger a second message or an extra keyboard.
+const LEGACY_REPLY_BUTTONS = new Set([
+  '📦 محصولات', '🏷 طرح‌های فروش', '🏷 طرح‌های عمومی',
+  '💰 لیست قیمت', '💰 قیمت‌ها', '🔎 جستجوی محصول', '🔎 جستجو',
+  '🧮 محاسبه قیمت', '🛒 سبد خرید', 'ℹ️ راهنما', '💬 مشاوره',
+]);
+const mustClearReplyKeyboard = content =>
+  content.startsWith('/') || LEGACY_REPLY_BUTTONS.has(content);
+
 function response(message, status = 200) {
   return new Response(message, {
     status,
@@ -133,11 +144,12 @@ export async function handleRequest(request, env, sendFetch = fetch) {
     if (callback) {
       await editTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id,
         message.message_id, reply, sendFetch);
-    } else if (content === '/start' || content === '/help') {
+    } else if (mustClearReplyKeyboard(content)) {
       // Telegram cannot combine remove_keyboard with inline_keyboard in one send.
-      // First clear the old reply keyboard, then edit the same message to inline UI.
+      // Clear any lingering bottom keyboard, then turn the same message into
+      // the requested inline screen. Ordinary search text stays single-message.
       const messageId = await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id, {
-        text: '🥤 به دستیار فروش خوشگوار خوش آمدید.',
+        text: '🥤 منوی فروش خوشگوار',
         reply_markup: { remove_keyboard: true },
       }, sendFetch);
       if (Number.isSafeInteger(messageId)) {

@@ -19,7 +19,8 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
       !Number.isSafeInteger(message.chat?.id) ||
       !Number.isSafeInteger(user?.id) || user.id !== message.chat.id) return null;
   const content = cb?.data || (typeof message.text === 'string' ? message.text.trim() : '');
-  if (content === '/start' || content === '/help' || content === 'ℹ️ راهنما') return welcome();
+  if (content === '/start' || content === '/help' || content === '/menu' ||
+      content === 'ℹ️ راهنما') return welcome();
   if (content === 'menu') return mainMenu();
   if (content === '/admin') return card('دسترسی مدیریت از این مسیر فعال نیست.');
 
@@ -86,7 +87,8 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
     return p && plan ? planQuote(p, plan, data) : notFound();
   }
 
-  if (content === 'search' || content === '/search') return searchPrompt();
+  if (['search', '/search', '🔎 جستجوی محصول', '🔎 جستجو'].includes(content))
+    return searchPrompt();
   if ((m = match(content, '^/search\\s+(.{2,60})$'))) return searchResults(m[1], data);
 
   // Old callbacks and commands no longer write to D1 or modify cart state.
