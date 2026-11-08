@@ -61,7 +61,7 @@ async function telegramCall(botToken, method, payload, sendFetch) {
   });
   let body;
   try { body = await res.json(); } catch { throw new Error('telegram_invalid_response'); }
-  if (res.ok && body?.ok === true) return 'ok';
+  if (res.ok && body?.ok === true) return method === 'sendMessage' ? (body.result?.message_id ?? 'ok') : 'ok';
   if (method === 'editMessageText' && res.status === 400) {
     if (/message is not modified/i.test(body?.description || '')) return 'unchanged';
     if (/message (can't be edited|to edit not found)/i.test(body?.description || '')) return 'cannot_edit';
@@ -133,6 +133,18 @@ export async function handleRequest(request, env, sendFetch = fetch) {
     if (callback) {
       await editTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id,
         message.message_id, reply, sendFetch);
+    } else if (content === '/start' || content === '/help') {
+      // Telegram cannot combine remove_keyboard with inline_keyboard in one send.
+      // First clear the old reply keyboard, then edit the same message to inline UI.
+      const messageId = await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id, {
+        text: '🥤 به دستیار فروش خوشگوار خوش آمدید.',
+        reply_markup: { remove_keyboard: true },
+      }, sendFetch);
+      if (Number.isSafeInteger(messageId)) {
+        await editTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id, messageId, reply, sendFetch);
+      } else {
+        await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id, reply, sendFetch);
+      }
     } else {
       await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id, reply, sendFetch);
     }
