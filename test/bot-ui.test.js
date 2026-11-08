@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  PAGE_SIZE, mainMenu, welcome, mergePublicCatalog, productList, productDetail,
+  PAGE_SIZE, mainMenu, welcome, mergePublicCatalog, productList, productFamilyList,
+  productFamilies, productDetail,
   priceList, variantsList, planList, planDetail, planQuote, planProducts,
   finalPriceList, discountedToman, searchResults,
 } from '../src/bot-ui.js';
@@ -33,13 +34,15 @@ test('only inline navigation remains; cart button and reply keyboard are absent'
   assert.ok(keys(menu).some(x => x.url === 'https://t.me/Hamidhosseinis'));
   assert.ok(!callbacks(menu).includes('cart'));
 });
-test('catalog pagination includes every published row and concise product details', () => {
+test('catalog shows families first, then every published model with per-family pagination', () => {
   assert.equal(PAGE_SIZE, 5);
   const first = productList(data);
-  assert.equal(callbacks(first).filter(x => x.startsWith('product:')).length, 5);
-  assert.ok(callbacks(first).includes('products:2'));
-  assert.ok(callbacks(productList(data, 3)).includes('product:P013'));
-  assert.match(productList(data, 4).text, /در دسترس نیست/);
+  assert.deepEqual(callbacks(first).filter(x => x.startsWith('family:')), ['family:original:1']);
+  assert.equal(productFamilies(data)[0].name, 'نوشابه اورجینال');
+  assert.equal(callbacks(productFamilyList(data, 'original')).filter(x => x.startsWith('product:')).length, 5);
+  assert.ok(callbacks(productFamilyList(data, 'original')).includes('family:original:2'));
+  assert.ok(callbacks(productFamilyList(data, 'original', 3)).includes('product:P013'));
+  assert.match(productFamilyList(data, 'original', 4).text, /در دسترس نیست/);
   const detail = productDetail(products[0], data);
   assert.match(detail.text, /۱۲٬۲۰۰ تومان/);
   assert.match(detail.text, /۶۵٬۴۱۰٫۷ تومان/);
@@ -96,7 +99,7 @@ test('search finds a product outside the first catalog page, regardless of flavo
 test('back and home share a compact inline row on detail screens', () => {
   const product = productDetail(products[0], data);
   const nav = product.reply_markup.inline_keyboard.at(-1);
-  assert.deepEqual(nav.map(button => button.callback_data), ['products:1', 'menu']);
+  assert.deepEqual(nav.map(button => button.callback_data), ['family:original:1', 'menu']);
   assert.equal(product.reply_markup.keyboard, undefined);
   const planView = planDetail(plan, data);
   assert.deepEqual(planView.reply_markup.inline_keyboard.at(-1)
