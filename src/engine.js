@@ -49,7 +49,8 @@ export function verifiedBoxBase(p) {
 export function publicBoxBase(p) {
   if (!allowed(p.base_box_price_approved_for_public)) return null;
   const amount = verifiedBoxBase(p);
-  return amount ? { amountIRR: amount, basis: 'PACK', taxVerified: false } : null;
+  return amount ? { amountIRR: amount, unitRawIRR: String(p.box_unit_base_price).trim(),
+    basis: 'PACK', taxVerified: false } : null;
 }
 function approvedPackBase(p) {
   if (!allowed(p.final_price_approved_for_public) ||
