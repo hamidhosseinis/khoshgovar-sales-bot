@@ -30,9 +30,9 @@ function boxBaseText(p) {
   const unit=Number(p.box_base_price.unitRawIRR);
   return 'قیمت پایه هر باکس (مبنای شیت): ' + fmt(p.box_base_price.amountIRR) +
     ' ریال' + (Number.isFinite(unit) && unit>0
-      ? '\\nقیمت پایه هر واحد داخل باکس (تقریبی): '+
+      ? '\nقیمت پایه هر واحد داخل باکس (تقریبی): '+
         unit.toLocaleString('fa-IR',{maximumFractionDigits:3})+' ریال'
-      : '') + '\\nشمول مالیات تأیید نشده';
+      : '') + '\nشمول مالیات تأیید نشده';
 }
 const pageSize=10;
 function pageOf(data,which,page) {
