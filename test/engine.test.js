@@ -51,7 +51,7 @@ const ids=(items,data)=>eligiblePlans(items,data).map(x=>x.plan.plan_id);
 test('default DRAFT rows, missing date, unpublished product and unmapped link stay private',()=>{
   const raw=seed();
   raw.Discount_Plans[0]={...raw.Discount_Plans[0],approved_for_public:'FALSE'};
-  raw.Discount_Plans[1]={...raw.Discount_Plans[1],valid_to:''};
+  raw.Discount_Plans[1]={...raw.Discount_Plans[1],valid_from:''};
   raw.Products[0]={...raw.Products[0],publish_status:'DRAFT'};
   raw.Product_Plans=raw.Product_Plans.filter(x=>!(x.product_id==='ORG'&&x.plan_id==='D003'));
   const data=publicData(raw,today);
