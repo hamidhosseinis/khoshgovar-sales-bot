@@ -64,7 +64,9 @@ function approvedPackBase(p) {
 }
 export function approvedProduct(p) {
   return allowed(p.approved_for_public) && p.publish_status === 'PUBLISHED' &&
-    typeof p.product_id === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(p.product_id);
+    typeof p.product_id === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(p.product_id) &&
+    typeof p.product_name === 'string' && p.product_name.trim().length > 0 &&
+    p.product_name.trim().length <= 160;
 }
 export function approvedPlan(p, today = new Date().toISOString().slice(0, 10)) {
   return allowed(p.approved_for_public) && allowed(p.is_active) &&
@@ -112,6 +114,27 @@ export function inGroup(product, group) {
   if (group === 'VARIETY_NON_WATER_NON_MILK') return !water && !milk;
   return id === group;
 }
+// The current canonical Products tab includes a JSON array of variants per row.
+// A product-level publication flag does not approve any variant: each entry
+// requires its own explicit public approval. Never fall back to raw flavor text.
+function approvedInlineVariants(product) {
+  const raw = product.variants_json;
+  if (typeof raw !== 'string' || raw.length > 50000) return [];
+  let entries;
+  try { entries = JSON.parse(raw); } catch { return []; }
+  if (!Array.isArray(entries) || entries.length > 100) return [];
+  const names = [];
+  for (const v of entries) {
+    if (!v || typeof v !== 'object' || Array.isArray(v) ||
+        !allowed(v.approved_for_public) || v.product_id !== product.product_id ||
+        (v.product_name && v.product_name !== product.product_name) ||
+        typeof v.variant_name !== 'string') continue;
+    const name = v.variant_name.trim();
+    if (name && name.length <= 100 && !names.includes(name)) names.push(name);
+    if (names.length >= 30) break;
+  }
+  return names;
+}
 export function publicData(rows, today) {
   const variants = new Map();
   for (const v of rows.Product_Variants || []) {
@@ -126,7 +149,7 @@ export function publicData(rows, today) {
   const products = (rows.Products || []).filter(approvedProduct).map(p => {
     const approvedBase = approvedPackBase(p);
     return {
-      product_id: p.product_id, product_name: p.product_name, flavor: p.flavor,
+      product_id: p.product_id, product_name: p.product_name.trim(),
       units_per_pack: p.units_per_pack, shelf_life_months: p.shelf_life_months,
       // Never carry an unpublished input price into the public pricing evaluator.
       base_price_irr: approvedBase,
@@ -134,7 +157,8 @@ export function publicData(rows, today) {
       final_price_approved_for_public: Boolean(approvedBase),
       consumer_price: publicConsumerPrice(p, today),
       box_base_price: publicBoxBase(p),
-      variants: variants.get(p.product_id) || [],
+      variants: [...new Set([...(variants.get(p.product_id) || []),
+        ...approvedInlineVariants(p)])].slice(0, 30),
       category_name: p.category_name, group_id: p.group_id, group_verified: p.group_verified,
     };
   });
