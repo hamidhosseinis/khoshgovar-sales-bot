@@ -18,13 +18,21 @@ function pageOf(items, page) {
   return { items: items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), pages };
 }
 export function card(text, rows = [], withHome = true) {
+  // Share one row between Back and Home to avoid a tall navigation footer.
+  // Copy the rows rather than mutating a caller's inline keyboard.
+  const buttons = rows.map(row => [...row]);
+  if (withHome) {
+    const last = buttons.at(-1);
+    if (last?.length === 1 && /^🔙/.test(last[0].text || '')) last.push(...home());
+    else buttons.push(home());
+  }
   return { text: String(text).slice(0, 3500),
-    reply_markup: { inline_keyboard: withHome ? [...rows, home()] : rows } };
+    reply_markup: { inline_keyboard: buttons } };
 }
 export function mainMenu() {
-  return card('🥤 دستیار فروش خوشگوار\nیکی از بخش‌ها را انتخاب کنید:', [
-    [key('📦 محصولات', 'products:1'), key('🏷 طرح‌های فروش', 'plans:1')],
-    [key('💰 لیست قیمت', 'prices:1'), key('🔎 جستجوی محصول', 'search')],
+  return card('🥤 منوی فروش خوشگوار\nبخش موردنظر را انتخاب کنید:', [
+    [key('📦 محصولات', 'products:1'), key('💰 قیمت‌ها', 'prices:1')],
+    [key('🏷 طرح‌های فروش', 'plans:1'), key('🔎 جستجو', 'search')],
     [{ text: CONSULTATION_BUTTON_TEXT, url: CONSULTATION_CHAT_URL }],
   ], false);
 }
