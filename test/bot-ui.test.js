@@ -62,7 +62,7 @@ test('product detail shows each approved flavor inline instead of hiding them be
   };
   const catalog = {...data, products: [item]};
   const detail = productDetail(item, catalog);
-  assert.match(detail.text, /این محصول شامل طعم‌های زیر است:\\nانگور، بلوبری، موهیتو، انبه/);
+  assert.match(detail.text, /این محصول شامل طعم‌های زیر است:\nانگور، بلوبری، موهیتو، انبه/);
   assert.ok(callbacks(detail).includes('variants:P022:1'));
   assert.match(productDetail(item, catalog, true).text, /انگور، بلوبری، موهیتو، انبه/);
   const privateItem = {...item, variants: []};
