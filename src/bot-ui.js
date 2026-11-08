@@ -86,7 +86,8 @@ export function priceList(data, page = 1) {
   if (!v) return card('این صفحه در دسترس نیست.');
   return card('💰 قیمت‌ها به تومان | ' + fmt(page) + ' از ' + fmt(v.pages), [
     ...v.items.map(p => [key(p.product_name + ' | ' +
-      (p.consumer_price ? toman(p.consumer_price.amountIRR) : toman(p.box_base_price.amountIRR)),
+      (p.consumer_price ? 'مصرف‌کننده ' + toman(p.consumer_price.amountIRR) :
+        'پایه بسته ' + toman(p.box_base_price.amountIRR)),
     'price:' + p.product_id)]),
     ...(pageButtons(page, v.pages, 'prices').length ? [pageButtons(page, v.pages, 'prices')] : []),
   ]);
