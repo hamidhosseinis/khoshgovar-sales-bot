@@ -1,10 +1,12 @@
 import {sheetCatalog} from './sheets.js';
+import { CONSULTATION_BUTTON_TEXT } from './consultation.js';
 import {allowed,approvedProduct,bestPlan,eligiblePlans,suggestions} from './engine.js';
 
 const keyboard={keyboard:[
   [{text:'📦 محصولات'},{text:'🏷 طرح‌های عمومی'}],
   [{text:'💰 قیمت‌ها'},{text:'🛒 سبد خرید'}],
   [{text:'💡 پیشنهاد تخفیف بیشتر'}],
+  [{text:CONSULTATION_BUTTON_TEXT}],
   [{text:'ℹ️ راهنما'}],
 ],resize_keyboard:true};
 const groupNames={
@@ -127,7 +129,7 @@ export async function botReply(update,env,requestFetch=fetch){
   const chatId=message.chat.id;
   const content=cb?.data || (typeof message.text==='string'?message.text.trim():'');
   if(content==='/start'||content==='/help'||content==='ℹ️ راهنما'){
-    return reply('به دستیار فروش خوشگوار خوش آمدید.\nمحصولات و طرح‌های فقط پس از تأیید انتشار و اعتبار قابل نمایش‌اند.\nبرای افزودن محصول: /add P001 1\nبرای کم‌کردن: /remove P001 1\nبرای سبد: /cart\nبرای قیمت مصرف‌کننده: /prices\nبرای پیشنهاد بیشتر: /suggest\nعکس‌ها فعلاً غیرفعال‌اند.');
+    return reply('به دستیار فروش خوشگوار خوش آمدید.\nمحصولات و طرح‌های فقط پس از تأیید انتشار و اعتبار قابل نمایش‌اند.\nبرای افزودن محصول: /add P001 1\nبرای کم‌کردن: /remove P001 1\nبرای سبد: /cart\nبرای قیمت مصرف‌کننده: /prices\nبرای پیشنهاد بیشتر: /suggest\nبرای مشاوره مستقیم: /consult\nعکس‌ها فعلاً غیرفعال‌اند.');
   }
   if(content==='📦 محصولات'||content==='/products')return productList(data);
   if(content==='💰 قیمت‌ها'||content==='/prices')return priceList(data);
