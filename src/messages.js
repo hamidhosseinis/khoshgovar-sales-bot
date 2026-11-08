@@ -1,3 +1,5 @@
+import { CONSULTATION_BUTTON_TEXT } from './consultation.js';
+
 /**
  * The public bot only displays fixed, publishable interface copy until a
  * separately reviewed and authorized publication source is connected.
@@ -6,6 +8,7 @@ export const CUSTOMER_KEYBOARD = {
   keyboard: [
     [{ text: '📦 محصولات' }, { text: '🏷 طرح‌های عمومی' }],
     [{ text: '🧮 محاسبه قیمت' }, { text: 'ℹ️ راهنما' }],
+    [{ text: CONSULTATION_BUTTON_TEXT }],
   ],
   resize_keyboard: true,
 };
@@ -15,7 +18,7 @@ const TEXT = Object.freeze({
   products: 'هنوز کاتالوگ تأییدشده‌ای برای نمایش عمومی منتشر نشده است.',
   offers: 'در حال حاضر طرح فروش معتبر و تأییدشده‌ای برای نمایش عمومی موجود نیست.',
   pricing: 'محاسبه قیمت پس از ثبت قیمت پایه و قوانین طرحِ تأییدشده فعال می‌شود. فعلاً مبلغی نمایش داده نمی‌شود.',
-  help: 'از دکمه‌های منو برای مشاهده محصولات، طرح‌های عمومی یا محاسبه قیمت استفاده کنید. محتوای تأییدنشده نمایش داده نمی‌شود.',
+  help: 'از دکمه‌های منو برای مشاهده محصولات، طرح‌های عمومی یا محاسبه قیمت استفاده کنید. محتوای تأییدنشده نمایش داده نمی‌شود. برای ارتباط مستقیم با مشاور دکمه «💬 مشاوره» را بزنید.',
   adminDenied: 'این بخش در دسترس نیست.',
   adminPending: 'هویت مدیر تأیید شد. امکانات مدیریت هنوز فعال نشده‌اند؛ هیچ داده داخلی در این نسخه قابل دریافت یا ویرایش نیست.',
 });
