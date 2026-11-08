@@ -174,6 +174,9 @@ export function priceList(data, page = 1) {
 export function productDetail(p, data, fromPrices = false) {
   const lines = ['🥤 ' + p.product_name];
   if (Number(p.units_per_pack) > 0) lines.push('📦 هر بسته: ' + fmt(p.units_per_pack) + ' عدد');
+  // Only per-variant approved flavors from the canonical Sheet reach this view.
+  // Keep them in the product message, not only behind a separate button.
+  if (p.variants?.length) lines.push('🎨 این محصول شامل طعم‌های زیر است:\n' + p.variants.join('، '));
   if (consumerText(p)) lines.push(consumerText(p));
   if (baseText(p)) lines.push(baseText(p));
   if (!consumerText(p) && !baseText(p)) lines.push('قیمت عمومی برای این محصول ثبت نشده است.');
