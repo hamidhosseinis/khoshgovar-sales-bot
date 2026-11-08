@@ -77,9 +77,9 @@ export function inGroup(product, group) {
   // A group must first be approved for this product (group_verified).
   // Secondary checks cover verified, explicitly labelled water/milk items.
   const water = id === 'DASANI_WATER' || id === 'WATER_ALL' ||
-    category === 'آب' || /^آب دسانی(?:\\s|$)/.test(name);
-  const milk = id === 'MILK' || category === 'شیر' || /^شیر(?:\\s|$)/.test(name);
-  const doogh = id === 'DOOGH' || category === 'دوغ' || /^دوغ(?:\\s|$)/.test(name);
+    category === 'آب' || /^آب دسانی(?:\s|$)/.test(name);
+  const milk = id === 'MILK' || category === 'شیر' || /^شیر(?:\s|$)/.test(name);
+  const doogh = id === 'DOOGH' || category === 'دوغ' || /^دوغ(?:\s|$)/.test(name);
   if (group === 'SODA_ALL') return soda;
   if (group === 'WATER_ALL') return water;
   if (group === 'NON_SODA') return !soda;

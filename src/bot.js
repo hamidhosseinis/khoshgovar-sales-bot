@@ -145,11 +145,11 @@ export async function botReply(update,env,requestFetch=fetch){
       : reply('محصول عمومی تأییدشده با این شناسه پیدا نشد.');
   }
   if(content==='🏷 طرح‌های عمومی'||content==='/plans')return planList(data);
-  const selectedPlan=content.match(/^\\/plan\\s+(D\\d{3})$/i);
+  const selectedPlan=content.match(/^\/plan\s+(D\d{3})$/i);
   if(selectedPlan){
     const p=data.plans.find(x=>x.plan_id===selectedPlan[1].toUpperCase());
-    return p?reply('🏷 '+p.plan_name+' — '+fmt(p.discount_percent)+'٪\\n'+p.conditions+
-      '\\nاجرای تخفیف به تطبیق گروه و تعداد بسته‌ها وابسته است.')
+    return p?reply('🏷 '+p.plan_name+' — '+fmt(p.discount_percent)+'٪\n'+p.conditions+
+      '\nاجرای تخفیف به تطبیق گروه و تعداد بسته‌ها وابسته است.')
       :reply('این طرح برای نمایش عمومی تأیید یا معتبر نشده است.');
   }
   if(content==='🛒 سبد خرید'||content==='/cart'){
