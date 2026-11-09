@@ -61,7 +61,7 @@ test('final-price button and plan route are at SKU level, not flavor level',asyn
   assert.ok(!calls(detail).includes('final:P003:1'));
   assert.ok(calls(detail).includes('product-plans:P003:1'));
   const quote=await replyTo(callback('final:P003:1'));
-  assert.match(quote.text,/۵۸۸٬۶۹۶٫۳ تومان/);
+  assert.match(quote.text,/۹۸٬۱۱۶٫۰۵ تومان/);
   assert.doesNotMatch(quote.text,/ریال/);
   const plan=await replyTo(callback('plan:D001'));
   assert.ok(calls(plan).includes('plan-items:D001:1'));

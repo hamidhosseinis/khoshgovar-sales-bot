@@ -21,8 +21,8 @@ test('canonical box and unit prices display unchanged in toman, with no divide-b
   });
   const detail = productDetail(p, data);
   assert.doesNotMatch(detail.text, /پایه هر بسته/);
-  assert.match(unitDetail(p).text, /پایه هر بسته: ۸۸۳٬۹۲۹ تومان/);
-  assert.match(detail.text, /قیمت پایه هر عدد: ۱۴۷٬۳۲۱٫۵ تومان/);
+  assert.match(unitDetail(p).text, /پایه هر بطری: ۱۴۷٬۳۲۱٫۵ تومان/);
+  assert.match(detail.text, /قیمت پایه هر بطری: ۱۴۷٬۳۲۱٫۵ تومان/);
   assert.doesNotMatch(detail.text, /۸۸٬۳۹۲٫۹ تومان/);
   assert.equal(sheetToman('0.25'), '۰٫۲۵ تومان');
   assert.equal(sheetToman('0.1.2'), null);

@@ -32,16 +32,15 @@ test('six product sections stay in order; single-pack quote includes per-unit av
   const ordered = [
     '🥤 نوشابه اورجینال ۲٫۵ لیتری',
     '📦 تعداد در بسته: ۶ عدد',
-    '💳 قیمت مصرف‌کننده هر عدد: ۱۲۲٬۰۰۰ تومان',
-    '🏷 قیمت پایه هر عدد: ۱۰۹٬۰۱۷٫۸۳۳۳۳۳۳۳۳۳۳ تومان',
-    '💰 تمام‌شده با تخفیف یک بسته («طرح یک»): ۵۸۸٬۶۹۶٫۳ تومان',
-    '↳ میانگین تمام‌شده هر عدد: ۹۸٬۱۱۶٫۰۵ تومان',
+    '💳 قیمت مصرف‌کننده هر بطری: ۱۲۲٬۰۰۰ تومان',
+    '🏷 قیمت پایه هر بطری: ۱۰۹٬۰۱۷٫۸۳۳۳۳۳۳۳۳۳۳ تومان',
+    '💰 قیمت تمام‌شده هر بطری با تخفیف («طرح یک»): ۹۸٬۱۱۶٫۰۵ تومان',
     '🎨 طعم‌ها: کوکاکولا، فانتا پرتقالی',
   ];
   const offsets = ordered.map(part => view.text.indexOf(part));
   assert.ok(offsets.every(x => x >= 0), view.text);
   assert.deepEqual([...offsets].sort((a,b) => a-b), offsets);
-  assert.doesNotMatch(view.text, /پایه هر بسته|حاشیه سود|ریال/);
+  assert.doesNotMatch(view.text, /پایه هر بسته|قیمت هر بسته|حاشیه سود|ریال|⚠️/);
   assert.ok(actions(view).includes('product-plans:P003:1'));
   assert.ok(!actions(view).includes('variants:P003:1'));
   assert.ok(!actions(view).some(x => /^(final|price|prices|add):/.test(x)));
@@ -53,8 +52,8 @@ test('no single-pack quote appears when quantity, approval, or policy is missing
   }]};
   assert.equal(approvedSinglePackOffer(product, minTwo, env), null);
   const view = productDetail(product, minTwo, env);
-  assert.doesNotMatch(view.text, /۵۸۸٬۶۹۶٫۳|میانگین تمام‌شده|حاشیه سود/);
-  assert.match(view.text, /طرح تخفیفی دارد؛ قیمت یک بسته قابل اعلام نیست/);
+  assert.doesNotMatch(view.text, /۹۸٬۱۱۶٫۰۵|قیمت تمام‌شده هر بطری|حاشیه سود/);
+  assert.match(view.text, /طرح تخفیفی دارد؛ قیمت هر بطری قابل اعلام نیست/);
   assert.ok(actions(view).includes('product-plans:P003:1'));
   assert.equal(approvedSinglePackOffer(product, data, {}), null);
   assert.equal(approvedSinglePackOffer(product, data, {
@@ -68,21 +67,21 @@ test('no single-pack quote appears when quantity, approval, or policy is missing
 test('missing retail price and invalid pack quantity never fabricate monetary details', () => {
   const hiddenRetail = {...product, consumer_price:null};
   const noRetail = productDetail(hiddenRetail, {...data,products:[hiddenRetail]}, env);
-  assert.match(noRetail.text, /قیمت مصرف‌کننده: منتشر نشده/);
-  assert.match(noRetail.text, /میانگین تمام‌شده هر عدد: ۹۸٬۱۱۶٫۰۵ تومان/);
+  assert.match(noRetail.text, /قیمت مصرف‌کننده هر بطری: منتشر نشده/);
+  assert.match(noRetail.text, /قیمت تمام‌شده هر بطری با تخفیف \(«طرح یک»\): ۹۸٬۱۱۶٫۰۵ تومان/);
   const packRetail = {...product, consumer_price:{amountIRR:'5500000',basis:'PACK'}};
   assert.match(productDetail(packRetail, {...data,products:[packRetail]}, env).text,
-    /قیمت مصرف‌کننده هر بسته: ۵۵۰٬۰۰۰ تومان/);
+    /قیمت مصرف‌کننده هر بطری: حدود ۹۱٬۶۶۶٫۶۶۶۷ تومان/);
   const invalid = {...product, units_per_pack:'0'};
   const invalidView = productDetail(invalid, {...data,products:[invalid]}, env);
   assert.match(invalidView.text, /تعداد در بسته: نامشخص/);
-  assert.doesNotMatch(invalidView.text, /میانگین تمام‌شده هر عدد/);
+  assert.doesNotMatch(invalidView.text, /قیمت تمام‌شده هر بطری با تخفیف/);
 });
 
 test('repeating average is marked approximate; no rounding claim is invented', () => {
   const unusual = {...product, units_per_pack:'7'};
   const view = productDetail(unusual, {...data, products:[unusual]}, env);
-  assert.match(view.text, /میانگین تمام‌شده هر عدد: حدود ۸۴٬۰۹۹٫۴۷۱۴ تومان/);
+  assert.match(view.text, /قیمت تمام‌شده هر بطری با تخفیف \(«طرح یک»\): حدود ۸۴٬۰۹۹٫۴۷۱۴ تومان/);
 });
 
 test('without a standalone tier, only approved plan hints are visible', () => {
@@ -94,7 +93,7 @@ test('without a standalone tier, only approved plan hints are visible', () => {
   };
   const view=productDetail(product,combined,env);
   assert.match(view.text,/طرح‌های تخفیفی متنوع و ترکیبی دارد/);
-  assert.doesNotMatch(view.text,/۵۸۸٬۶۹۶٫۳|میانگین تمام‌شده/);
+  assert.doesNotMatch(view.text,/۹۸٬۱۱۶٫۰۵|قیمت تمام‌شده هر بطری/);
   const none={...data,plans:[]};
   const noPlan=productDetail(product,none,env);
   assert.match(noPlan.text,/قیمت تخفیفی یک‌بسته‌ای برای این محصول منتشر نشده است/);
@@ -110,5 +109,5 @@ test('manipulated multi-pack plan cannot invent a single-pack tier', () => {
       group_id:'ORIGINAL_CANADA_COMBINED',quantity_rule:'MINIMUM',min_packs:'1'}],
   };
   assert.equal(approvedSinglePackOffer(product,richer,env).plan.plan_id,'D001');
-  assert.doesNotMatch(productDetail(product,richer,env).text,/تمام‌شده با تخفیف یک بسته \(«طرح دوازده درصد»/);
+  assert.doesNotMatch(productDetail(product,richer,env).text,/قیمت تمام‌شده هر بطری با تخفیف \(«طرح دوازده درصد»/);
 });
