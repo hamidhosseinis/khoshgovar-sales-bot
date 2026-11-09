@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   PAGE_SIZE, mainMenu, welcome, mergePublicCatalog, productList, productFamilyList,
   productFamilies, productDetail,
-  priceList, variantsList, planList, planDetail, planQuote, planProducts,
+  approvedSinglePackOffer, variantsList, planList, planDetail, planQuote, planProducts,
   finalPriceList, discountedToman, searchResults,
 } from '../src/bot-ui.js';
 
@@ -31,6 +31,8 @@ test('only inline navigation remains; cart button and reply keyboard are absent'
   assert.equal(menu.reply_markup.keyboard, undefined);
   assert.ok(callbacks(menu).includes('products:1'));
   assert.ok(callbacks(menu).includes('plans:1'));
+  assert.ok(!callbacks(menu).includes('prices:1'));
+  assert.ok(!keys(menu).some(k => k.text === '💰 قیمت‌ها'));
   assert.ok(keys(menu).some(x => x.url === 'https://t.me/Hamidhosseinis'));
   assert.ok(!callbacks(menu).includes('cart'));
 });
@@ -47,7 +49,9 @@ test('catalog shows families first, then every published model with per-family p
   assert.match(detail.text, /۱۲٬۲۰۰ تومان/);
   assert.match(detail.text, /۶۵٬۴۱۰٫۷ تومان/);
   assert.doesNotMatch(detail.text, /ریال|۶۵۴٬۱۰۷|طعم کوکاکولا/);
-  assert.ok(callbacks(detail).includes('final:P003:1'));
+  assert.ok(!callbacks(detail).includes('final:P003:1'));
+  assert.ok(callbacks(detail).includes('product-plans:P003:1'));
+  assert.match(detail.text, /قیمت خرید یک بسته و حاشیه سود پس از تأیید/);
   assert.ok(callbacks(detail).includes('variants:P003:1'));
   assert.ok(!callbacks(detail).some(x => x.startsWith('add:')));
 });
@@ -64,15 +68,10 @@ test('product detail shows each approved flavor inline instead of hiding them be
   const detail = productDetail(item, catalog);
   assert.match(detail.text, /این محصول شامل طعم‌های زیر است:\nانگور، بلوبری، موهیتو، انبه/);
   assert.ok(callbacks(detail).includes('variants:P022:1'));
-  assert.match(productDetail(item, catalog, true).text, /انگور، بلوبری، موهیتو، انبه/);
+  assert.match(productDetail(item, catalog).text, /انگور، بلوبری، موهیتو، انبه/);
   const privateItem = {...item, variants: []};
   assert.doesNotMatch(productDetail(privateItem, {...catalog, products:[privateItem]}).text,
     /انگور|بلوبری|موهیتو|انبه|شامل طعم/);
-});
-test('price list uses toman, not rial', () => {
-  const view = priceList(data);
-  assert.match(keys(view)[0].text, /تومان/);
-  assert.doesNotMatch(view.text, /ریال/);
 });
 test('plans show terms and linked products without cart navigation', () => {
   assert.ok(callbacks(planList(data)).includes('plan:D001'));
@@ -124,5 +123,5 @@ test('back and home share a compact inline row on detail screens', () => {
     .map(button => button.callback_data), ['plans:1', 'menu']);
   const menu = mainMenu();
   assert.deepEqual(callbacks(menu).slice(0, 4),
-    ['products:1', 'prices:1', 'plans:1', 'search']);
+    ['products:1', 'plans:1', 'search']);
 });
