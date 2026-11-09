@@ -121,7 +121,8 @@ test('cart preserves distinct approved model/flavor and previews only whole-toma
  assert.ok(callbacks(choose).includes('cart-v:O:1'));
  let cart=changeQuantity([], 'O','کوکاکولا',1);
  cart=changeQuantity(cart,'O','فانتا پرتقالی',1);
- cart=changeQuantity(cart,'C','',2);
+ cart=changeQuantity(cart,'C','',1);
+ cart=changeQuantity(cart,'C','',1);
  assert.equal(cart.length,3);
  assert.equal(cart.reduce((x,y)=>x+y.qty,0),4);
  const summary=cartSummary(cart,d,{});
