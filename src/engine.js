@@ -76,8 +76,9 @@ export function approvedProduct(p) {
     typeof p.product_name === 'string' && p.product_name.trim().length > 0 &&
     p.product_name.trim().length <= 160;
 }
+// A withdrawn promotion must not reappear from stale or re-added Sheet rows.
 export function approvedPlan(p, today = new Date().toISOString().slice(0, 10)) {
-  return allowed(p.approved_for_public) && allowed(p.is_active) &&
+  return p?.plan_id !== 'D005' && allowed(p.approved_for_public) && allowed(p.is_active) &&
     p.review_status === 'APPROVED' &&
     isoDate(p.valid_from) &&
     (!p.valid_to || isoDate(p.valid_to)) &&

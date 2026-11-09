@@ -21,7 +21,7 @@ const products=[
   product('OTHER','KHOSH_LEMONADE','80000'),
   product('WATER','DASANI_WATER','50000')
 ];
-const plans=[plan('D001',10),plan('D002',13,'2'),plan('D003',15),plan('D004',16),plan('D005',23),plan('D006',20)];
+const plans=[plan('D001',10),plan('D002',13,'2'),plan('D003',15),plan('D004',16),plan('D006',20)];
 const reqs=[
   ['D001','ORIGINAL_SODA','RANGE','',1,10],
   ['D002','ORIGINAL_SODA','EXACT_MULTIPLE',4,'',''],
@@ -29,15 +29,13 @@ const reqs=[
   ['D003','ORIGINAL_SODA','EXACT_MULTIPLE',10,'',''],
   ['D003','NON_SODA_NON_DASANI','EXACT_MULTIPLE',3,'',''],
   ['D004','CANADA_SODA','MINIMUM','',11,''],
-  ['D005','CANADA_SODA','EXACT_MULTIPLE',10,'',''],
-  ['D005','KHOSH_LEMONADE','EXACT_MULTIPLE',5,'',''],
   ['D006','DASANI_WATER','MINIMUM','',11,'']
 ].map(([plan_id,group_id,quantity_rule,packs_per_step,min_packs,max_packs])=>
   ({plan_id,group_id,quantity_rule,packs_per_step:String(packs_per_step),min_packs:String(min_packs),max_packs:String(max_packs)}));
 const targetGroups={
   D001:['ORIGINAL_SODA'],D002:['ORIGINAL_SODA','NON_SODA'],
   D003:['ORIGINAL_SODA','NON_SODA_NON_DASANI'],D004:['CANADA_SODA'],
-  D005:['CANADA_SODA','KHOSH_LEMONADE'],D006:['DASANI_WATER']
+  D006:['DASANI_WATER']
 };
 function seed(){
   return {Products:products.map(x=>({...x})),Discount_Plans:plans.map(x=>({...x})),Product_Plans:products.flatMap(p=>
@@ -65,27 +63,24 @@ test('4+1 and 8+2 allowed but 12+3 forbidden',()=>{
   assert.ok(ids(cart(['ORG',8],['OTHER',2]),d).includes('D002'));
   assert.ok(!ids(cart(['ORG',12],['OTHER',3]),d).includes('D002'));
 });
-test('10+3/100+30 and 10+5/100+50 exact ratios',()=>{
+test('10+3/100+30 exact ratios',()=>{
   const d=publicData(seed(),today);
   assert.ok(ids(cart(['ORG',10],['OTHER',3]),d).includes('D003'));
   assert.ok(ids(cart(['ORG',100],['OTHER',30]),d).includes('D003'));
   assert.ok(!ids(cart(['ORG',10],['WATER',3]),d).includes('D003'));
-  assert.ok(ids(cart(['CAN',10],['LEM',5]),d).includes('D005'));
-  assert.ok(ids(cart(['CAN',100],['LEM',50]),d).includes('D005'));
-  assert.ok(!ids(cart(['CAN',11],['LEM',5]),d).includes('D005'));
 });
-test('10 Canada has no 16 percent, offers 1 Canada or 5 lemonade',()=>{
+test('10 Canada has no 16 percent, only 1 more Canada activates D004',()=>{
   const d=publicData(seed(),today),items=cart(['CAN',10]);
   assert.ok(!ids(items,d).includes('D004'));
   const ss=suggestions(items,d);
   assert.ok(ss.some(x=>x.plan.plan_id==='D004'&&x.adds[0].packs===1));
-  assert.ok(ss.some(x=>x.plan.plan_id==='D005'&&x.adds[0].packs===5));
+  assert.ok(!ss.some(x=>x.adds.some(a=>a.group_id==='KHOSH_LEMONADE')));
   assert.ok(ids(cart(['CAN',11]),d).includes('D004'));
 });
 test('missing company price policy yields no claimed monetary winner',()=>{
-  const d=publicData(seed(),today),items=cart(['CAN',10],['LEM',5]);
+  const d=publicData(seed(),today),items=cart(['CAN',11]);
   assert.equal(bestPlan(items,d,{}).winner,null);
-  assert.equal(bestPlan(items,d,{PRICE_POLICY_APPROVED:'true',ROUNDING_RULE:'HALF_UP_IRR'}).winner.plan.plan_id,'D005');
+  assert.equal(bestPlan(items,d,{PRICE_POLICY_APPROVED:'true',ROUNDING_RULE:'HALF_UP_IRR'}).winner.plan.plan_id,'D004');
 });
 test('no plan stacking or partial exact-step allocation',()=>{
   const d=publicData(seed(),today);
@@ -111,25 +106,38 @@ test('consumer price requires explicit approval, valid dates, and a declared uni
 });
 test('unapproved buying price is suppressed even when plan is valid and global policy is enabled',()=>{
   const raw=seed();
-  raw.Products[0].final_price_approved_for_public='FALSE';
+  raw.Products.find(p=>p.product_id==='CAN').final_price_approved_for_public='FALSE';
   const d=publicData(raw,today);
   assert.equal(d.products[0].base_price_irr,null);
-  assert.equal(bestPlan(cart(['CAN',10],['LEM',5]),d,{
+  assert.equal(bestPlan(cart(['CAN',11]),d,{
     PRICE_POLICY_APPROVED:'true',ROUNDING_RULE:'HALF_UP_IRR'
   }).winner,null);
 });
-test('approved plan returns per-product net price and exact totals in IRR',()=>{
+test('approved Canada plan returns per-product net price and exact totals in IRR',()=>{
   const d=publicData(seed(),today);
-  const outcome=bestPlan(cart(['CAN',10],['LEM',5]),d,{
+  const outcome=bestPlan(cart(['CAN',11]),d,{
     PRICE_POLICY_APPROVED:'true',ROUNDING_RULE:'HALF_UP_IRR'
   });
-  assert.equal(outcome.winner.plan.plan_id,'D005');
-  assert.equal(outcome.winner.money.totalIRR,'1232000');
-  assert.equal(outcome.winner.money.savingIRR,'368000');
+  assert.equal(outcome.winner.plan.plan_id,'D004');
+  assert.equal(outcome.winner.money.totalIRR,'1108800');
+  assert.equal(outcome.winner.money.savingIRR,'211200');
   assert.deepEqual(outcome.winner.money.itemPrices,[
-    {product_id:'CAN',qty:10,finalPricePerPackIRR:'92400',lineTotalIRR:'924000'},
-    {product_id:'LEM',qty:5,finalPricePerPackIRR:'61600',lineTotalIRR:'308000'}
+    {product_id:'CAN',qty:11,finalPricePerPackIRR:'100800',lineTotalIRR:'1108800'}
   ]);
+});
+test('withdrawn plan D005 cannot reappear from stale approved rows',()=>{
+  const raw=seed();
+  raw.Discount_Plans.push(plan('D005',23));
+  raw.Product_Plans.push({product_id:'CAN',plan_id:'D005',is_active:'TRUE',approved_for_public:'TRUE'});
+  raw.Plan_Requirements.push({plan_id:'D005',group_id:'CANADA_SODA',quantity_rule:'MINIMUM',min_packs:'1'});
+  raw.Plan_Discount_Targets.push({plan_id:'D005',group_id:'CANADA_SODA'});
+  const d=publicData(raw,today);
+  assert.ok(!d.plans.some(p=>p.plan_id==='D005'));
+  assert.ok(!d.links.some(p=>p.plan_id==='D005'));
+  assert.ok(!d.requirements.some(p=>p.plan_id==='D005'));
+  assert.ok(!d.targets.some(p=>p.plan_id==='D005'));
+  assert.ok(!eligiblePlans(cart(['CAN',11]),d).some(x=>x.plan.plan_id==='D005'));
+  assert.ok(!suggestions(cart(['CAN',10]),d).some(x=>x.plan.plan_id==='D005'));
 });
 test('invalid calendar dates cannot approve a plan',()=>{
   const raw=seed();
@@ -218,10 +226,10 @@ function allPlanSeed(){
   }))));
   return raw;
 }
-test('all twelve plan IDs and their percentages are read from approved Discount_Plans',()=>{
+test('all eleven remaining plan IDs and their percentages are read from approved Discount_Plans',()=>{
   const d=publicData(allPlanSeed(),today);
   assert.deepEqual(d.plans.map(p=>[p.plan_id,Number(p.discount_percent)]),[
-    ['D001',10],['D002',13],['D003',15],['D004',16],['D005',23],['D006',20],
+    ['D001',10],['D002',13],['D003',15],['D004',16],['D006',20],
     ['D007',33],['D008',20],['D009',33],['D010',25],['D011',12],['D012',15]
   ]);
 });
@@ -276,7 +284,7 @@ test('new plan approval gates remain closed for D007-D012 draft sheets',()=>{
     p.is_active='FALSE';p.approved_for_public='FALSE';p.review_status='DRAFT';p.valid_from='';p.valid_to='';
   }
   const d=publicData(raw,today);
-  assert.equal(d.plans.length,6);
+  assert.equal(d.plans.length,5);
   assert.ok(!d.plans.some(p=>p.plan_id==='D007'||p.plan_id==='D012'));
 });
 

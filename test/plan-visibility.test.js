@@ -11,7 +11,6 @@ const groups = {
   D002: ['ORIGINAL_SODA', 'NON_SODA'],
   D003: ['ORIGINAL_SODA', 'NON_SODA_NON_DASANI'],
   D004: ['CANADA_SODA'],
-  D005: ['CANADA_SODA', 'KHOSH_LEMONADE'],
   D006: ['DASANI_WATER'],
   D007: ['ENERGY_DRINK'],
   D008: ['DOOGH_MILK'],
@@ -50,10 +49,10 @@ const buttons = view => view.reply_markup.inline_keyboard.flat()
 
 test('reviewed scopes hold for original, Canada, variety, energy, water and milk', () => {
   assert.deepEqual(visible(find('P003')), ['D001','D002','D003','D011','D012']);
-  assert.deepEqual(visible(find('P046')), ['D004','D005','D011','D012']);
+  assert.deepEqual(visible(find('P046')), ['D004','D011','D012']);
   assert.deepEqual(visible(find('P034')), ['D002','D003','D007','D009','D010','D012']);
   assert.deepEqual(visible(find('P023')), ['D002','D003','D009','D010','D012']);
-  assert.deepEqual(visible(find('P024')), ['D002','D003','D005','D009','D010','D012']);
+  assert.deepEqual(visible(find('P024')), ['D002','D003','D009','D010','D012']);
   assert.deepEqual(visible(find('P011')), ['D002','D006']);
   assert.deepEqual(visible(find('P020')), ['D002','D003','D008']);
   assert.deepEqual(visible(find('P014')), ['D002','D003','D008','D009','D010','D012']);
@@ -80,6 +79,14 @@ test('bad target additions or new unreviewed plan IDs cannot widen a promotion',
   assert.ok(!planAppliesToProduct(find('P003'), { plan_id: 'D013' }, enlarged));
   const unverified = { ...find('P034'), group_verified: 'FALSE' };
   assert.deepEqual(visible(unverified), []);
+});
+
+test('retired D005 stays hidden from product quote even with forged links and targets', () => {
+  const retired = { plan_id: 'D005', plan_name: 'withdrawn', discount_percent: '23' };
+  const polluted = { ...data,
+    links: [...data.links, { product_id: 'P046', plan_id: 'D005' }],
+    targets: [...data.targets, { plan_id: 'D005', group_id: 'CANADA_SODA' }] };
+  assert.equal(planAppliesToProduct(find('P046'), retired, polluted), false);
 });
 
 test('explicit names guard against misclassified soda, water and milk in variety', () => {
