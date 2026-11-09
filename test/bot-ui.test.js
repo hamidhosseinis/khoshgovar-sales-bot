@@ -106,7 +106,7 @@ test('display-only ceil rules keep all prices in whole toman per bottle', () => 
   assert.match(quote.text, /قیمت محاسباتی هر بطری پس از تخفیف/);
   assert.match(full.text, /قیمت محاسباتی هر بطری پس از تخفیف/);
   assert.doesNotMatch(full.text, /هر بسته|⚠️|مالیات\/گردکردن/);
-  assert.match(planProducts(plan, data).text, /هر بطری/);
+  assert.match(planProducts(plan, data).text, /انتخاب مدل/);
   for (const view of [productDetail(products[0], data), unitDetail(products[0]), quote, full]) {
     assert.doesNotMatch(view.text, /ریال|قیمت هر بسته|پایه هر بسته|[۰-۹]٫[۰-۹]+ تومان/);
   }
