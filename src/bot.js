@@ -138,34 +138,10 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
         await writeCart(env,user.id,cart);
         return display();
       }
-      if ((m=match(content,'^cart-(plus|minus):(\\d{1,2})(?::(5|10))?
+      if ((m=match(content,'^cart-(plus|minus):(\\d{1,2})(?::(5|10))?$'))) {
         const i=Number(m[2]), item=cart[i];
         if(!item)return display();
         cart=changeQuantity(cart,item.product_id,item.variant,m[1]==='plus'?Number(m[3]||1):-1);
-        await writeCart(env,user.id,cart);
-        return display();
-      }
-      if ((m=match(content,'^cart-gap:('+idPattern+'):(\\d{1,2}):([1-9]\\d{0,2})$')))
-        return missingGroupProducts(cart,data,m[1],Number(m[2]),page(m[3]));
-    } catch {
-      return card('سبد خرید ذخیره نشد. لطفاً دوباره تلاش کنید.');
-    }
-    return display();
-  }
-  if (content === '🧮 محاسبه قیمت' || content === '/suggest' ||
-      content.startsWith('suggest:') || /^\/(?:add|remove|clear)(?:\s|$)/i.test(content))
-    return card('برای انتخاب محصولات و بررسی تخفیف، وارد سبد خرید شوید.',[
-      [{text:'🛒 سبد خرید',callback_data:'cart'}],
-    ]);
-
-  if (!cb && content && !content.startsWith('/')) return searchResults(content, data);
-  return mainMenu();
-}
-
-))) {
-        const i=Number(m[2]), item=cart[i];
-        if(!item)return display();
-        cart=changeQuantity(cart,item.product_id,item.variant,m[1]==='plus'?1:-1);
         await writeCart(env,user.id,cart);
         return display();
       }
