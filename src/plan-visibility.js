@@ -1,6 +1,6 @@
 import { inGroup } from './engine.js';
 
-// Server-side scopes approved for the twelve currently published promotions.
+// Server-side scopes approved for the eleven currently published promotions.
 // A bad Product_Plans link or widened Sheets target may never make a discount
 // available for a different family. New plan IDs fail closed until reviewed.
 const SCOPES = Object.freeze({
@@ -8,7 +8,6 @@ const SCOPES = Object.freeze({
   D002: ['ORIGINAL_SODA', 'NON_SODA'],
   D003: ['ORIGINAL_SODA', 'NON_SODA_NON_DASANI'],
   D004: ['CANADA_SODA'],
-  D005: ['CANADA_SODA', 'KHOSH_LEMONADE'],
   D006: ['DASANI_WATER'],
   D007: ['ENERGY_DRINK'],
   D008: ['DOOGH_MILK'],
