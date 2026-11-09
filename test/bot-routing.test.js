@@ -70,10 +70,12 @@ test('final-price button and plan route are at SKU level, not flavor level',asyn
 });
 test('customer can choose approved flavors and persist distinct variants in runtime D1',async()=>{
   const store = new Map();
-  const env={CART_DB:{prepare(sql){return {bind(key,value){return {
-    async first(){return {value:store.get(key) ?? '[]'};},
-    async run(){store.set(key,value);return {success:true};},
-  };}};}};
+  const env={CART_DB:{
+    prepare(){return {bind(key,value){return {
+      async first(){return {value:store.get(key) ?? '[]'};},
+      async run(){store.set(key,value);return {success:true};},
+    };}};},
+  }};
   const chooser=await replyTo(callback('cart-add:P003'),env);
   assert.ok(calls(chooser).includes('cart-v:P003:1'));
   const first=await replyTo(callback('cart-v:P003:1'),env);
