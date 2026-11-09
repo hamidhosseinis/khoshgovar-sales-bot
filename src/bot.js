@@ -77,7 +77,10 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
   if (['🎁 طرح‌های فروش', '🏷 طرح‌های فروش', '🏷 طرح‌های عمومی', '/plans'].includes(content)) return planList(data);
   if ((m = match(content, '^plans:([1-9]\\d{0,2})$')))
     return planList(data, page(m[1]));
-  if ((m = match(content, '^plan-group:([1-9]\\d{0,2}):([1-9]\\d{0,2})
+  if ((m = match(content, '^plan-group:([1-9]\\d{0,2}):([1-9]\\d{0,2})$')))
+    return planGroupList(data, page(m[1]), page(m[2]));
+  if ((m = match(content, '^plan-rate:([1-9]\\d{0,2}):([0-9]{1,3})$')))
+    return planRateList(data, page(m[1]), page(m[2]));
   if ((m = match(content, '^plan:(' + idPattern + ')$')) ||
       (m = match(content, '^/plan\\s+(' + idPattern + ')$'))) {
     const plan = findPlan(m[1]);
