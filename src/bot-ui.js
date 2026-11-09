@@ -77,12 +77,10 @@ export function discountedToman(baseToman, percent) {
   return renderToman(BigInt(baseToman) * BigInt(100 - Number(percent)), 100n);
 }
 const consumerText = p => p.consumer_price
-  ? '💳 مصرف‌کننده هر ' + (p.consumer_price.basis === 'PACK' ? 'بسته' : 'عدد') +
+  ? '💳 قیمت مصرف‌کننده هر ' + (p.consumer_price.basis === 'PACK' ? 'بسته' : 'عدد') +
     ': ' + toman(p.consumer_price.amountIRR) : null;
-const baseText = p => p.box_base_price
-  ? '🏷 پایه هر بسته: ' + sheetToman(p.box_base_price.amountToman) : null;
 const unitBaseText = p => p.box_base_price
-  ? '🏷 پایه هر عدد: ' + sheetToman(p.box_base_price.unitRawToman) : null;
+  ? '🏷 قیمت پایه هر عدد: ' + sheetToman(p.box_base_price.unitRawToman) : null;
 function compatiblePlans(p, data) {
   return data.plans.filter(plan => planAppliesToProduct(p, plan, data));
 }
@@ -111,24 +109,17 @@ export function approvedSinglePackOffer(product, data, env) {
   }
   return best;
 }
-function prospectiveMargin(product, priceIRR) {
-  const consumer = product.consumer_price;
-  if (!consumer || !/^[1-9]\d*$/.test(String(consumer.amountIRR ?? '')) ||
-      !['UNIT', 'PACK'].includes(consumer.basis)) return null;
-  const qty = String(product.units_per_pack ?? '');
-  if (consumer.basis === 'UNIT' &&
-      (!/^[1-9]\d*$/.test(qty) || BigInt(qty) > 10000n)) return null;
-  const sale = BigInt(consumer.amountIRR) *
-    (consumer.basis === 'PACK' ? 1n : BigInt(qty));
-  if (sale <= 0n || sale > BigInt(Number.MAX_SAFE_INTEGER)) return null;
-  const spread = sale - BigInt(priceIRR);
-  const abs = spread < 0n ? -spread : spread;
-  // Percent is display-only and rounded to two decimal places.
-  const hundredths = (abs * 10000n + sale / 2n) / sale;
-  const pct = fa((hundredths / 100n).toString() + '٫' +
-    (hundredths % 100n).toString().padStart(2, '0')) + '٪';
-  return {amount: (spread < 0n ? '−' : '') + toman(abs),
-    percent: (spread < 0n ? '−' : '') + pct};
+// A unit amount is an arithmetic average of the approved PACK price, not a
+// separately rounded/saleable unit quote. Mark non-terminating decimals as
+// approximate; do not silently invent a per-unit rounding policy.
+function averageUnitToman(priceIRR, unitsPerPack) {
+  const count = String(unitsPerPack ?? '');
+  if (!/^[1-9]\d*$/.test(count) || BigInt(count) > 10000n) return null;
+  const divisor = BigInt(count) * 10n; // IRR per pack -> toman per unit
+  const scaled = BigInt(priceIRR) * 10000n;
+  const whole = scaled / divisor, remainder = scaled % divisor;
+  const value = whole + (remainder * 2n >= divisor ? 1n : 0n);
+  return (remainder ? 'حدود ' : '') + renderToman(value, 10000n);
 }
 
 const catalogRules = [
@@ -215,39 +206,39 @@ export function productFamilyList(data, familyId, page = 1) {
   ]);
 }
 export function productDetail(p, data, env = {}) {
+  const plans = compatiblePlans(p, data);
+  // One compact, fixed-order product card; never fall back to unapproved
+  // prices, plan rules, or raw flavor fields from the Sheet.
   const lines = ['🥤 ' + p.product_name];
-  if (Number(p.units_per_pack) > 0) lines.push('📦 هر بسته: ' + fmt(p.units_per_pack) + ' عدد');
-  // Only per-variant approved flavors from the canonical Sheet reach this view.
-  // Keep them in the product message, not only behind a separate button.
-  if (p.variants?.length) lines.push('🎨 این محصول شامل طعم‌های زیر است:\n' + p.variants.join('، '));
-  if (consumerText(p)) lines.push(consumerText(p));
-  if (baseText(p)) lines.push(baseText(p));
-  if (unitBaseText(p)) lines.push(unitBaseText(p));
-  if (!consumerText(p) && !baseText(p))
-    lines.push('قیمت عمومی برای این محصول ثبت نشده است.');
+  lines.push('📦 تعداد در بسته: ' +
+    (/^[1-9]\d*$/.test(String(p.units_per_pack ?? ''))
+      ? fmt(p.units_per_pack) + ' عدد' : 'نامشخص'));
+  lines.push(consumerText(p) || '💳 قیمت مصرف‌کننده: منتشر نشده');
+  lines.push(unitBaseText(p) || '🏷 قیمت پایه هر عدد: منتشر نشده');
+
   const offer = approvedSinglePackOffer(p, data, env);
   if (offer) {
-    lines.push('🛍️ قیمت خرید یک بسته با «' + offer.plan.plan_name + '»: ' +
+    lines.push('💰 تمام‌شده با تخفیف یک بسته («' + offer.plan.plan_name + '»): ' +
       toman(offer.priceIRR));
-    lines.push('✅ تخفیف این طرح با خرید یک بسته هم اعمال می‌شود.');
-    const margin = prospectiveMargin(p, offer.priceIRR);
-    if (margin) lines.push('📈 حاشیه سود ناخالص احتمالی: ' + margin.amount +
-      ' (' + margin.percent + ')');
-    else lines.push('📈 حاشیه سود: قیمت مصرف‌کننده معتبر برای محاسبه موجود نیست.');
-    lines.push('حاشیه سود با فرض فروش به قیمت مصرف‌کننده و پیش از سایر هزینه‌هاست.');
-  } else lines.push('💡 قیمت خرید یک بسته و حاشیه سود پس از تأیید طرح و قوانین محاسبه اعلام می‌شود.');
-  if (compatiblePlans(p, data).length)
-    lines.push('🏷 برای تخفیف بیشتر، سایر طرح‌ها و شرایط آن‌ها را ببینید.');
-  if (p.variants?.length > 1)
-    lines.push('🎨 قیمت برای تمام طعم‌های این محصول یکسان است.');
+    const perUnit = averageUnitToman(offer.priceIRR, p.units_per_pack);
+    if (perUnit) lines.push('↳ میانگین تمام‌شده هر عدد: ' + perUnit);
+  } else if (plans.length > 1) {
+    lines.push('💡 این محصول طرح‌های تخفیفی متنوع و ترکیبی دارد؛ شرایط را ببینید.');
+  } else if (plans.length) {
+    lines.push('💡 این محصول طرح تخفیفی دارد؛ قیمت یک بسته قابل اعلام نیست.');
+  } else {
+    lines.push('💡 قیمت تخفیفی یک‌بسته‌ای برای این محصول منتشر نشده است.');
+  }
+  // Variants must be filtered by the server before reaching this view.
+  if (p.variants?.length) lines.push('🎨 طعم‌ها: ' + p.variants.join('، '));
+
   const family = productFamilies(data).find(f =>
     f.items.some(x => x.product_id === p.product_id));
   const familyIndex = family?.items.findIndex(x => x.product_id === p.product_id) ?? -1;
   const back = family ? 'family:' + family.id + ':' +
     (Math.floor(familyIndex / PAGE_SIZE) + 1) : 'products:1';
   return card(lines.join('\n'), [
-    [key('🏷 طرح‌های تخفیف بیشتر', 'product-plans:' + p.product_id + ':1'),
-      ...(p.variants?.length ? [key('🎨 طعم‌ها', 'variants:' + p.product_id + ':1')] : [])],
+    ...(plans.length ? [[key('🏷 طرح‌های تخفیف', 'product-plans:' + p.product_id + ':1')]] : []),
     [key('🔙 بازگشت', back)],
   ]);
 }

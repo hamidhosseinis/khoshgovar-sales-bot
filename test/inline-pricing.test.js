@@ -23,28 +23,39 @@ const data = {
 const actions = view => view.reply_markup.inline_keyboard.flat()
   .map(button => button.callback_data).filter(Boolean);
 
-test('approved one-pack offer, visible retail/base prices and potential margin', () => {
+test('six product sections stay in order; single-pack quote includes per-unit average', () => {
   const chosen = approvedSinglePackOffer(product, data, env);
   assert.equal(chosen.plan.plan_id, 'D001');
   assert.equal(chosen.priceIRR, '5886963'); // approved HALF_UP_IRR per pack
-  const view = productDetail(product, data, env);
-  assert.match(view.text, /مصرف‌کننده هر عدد: ۱۲۲٬۰۰۰ تومان/);
-  assert.match(view.text, /پایه هر بسته: ۶۵۴٬۱۰۷ تومان/);
-  assert.match(view.text, /پایه هر عدد: ۱۰۹٬۰۱۷٫۸۳۳۳۳۳۳۳۳۳۳ تومان/);
-  assert.match(view.text, /قیمت خرید یک بسته با «طرح یک»: ۵۸۸٬۶۹۶٫۳ تومان/);
-  assert.match(view.text, /تخفیف این طرح با خرید یک بسته هم اعمال می‌شود/);
-  assert.match(view.text, /حاشیه سود ناخالص احتمالی: ۱۴۳٬۳۰۳٫۷ تومان \(۱۹٫۵۸٪\)/);
-  assert.match(view.text, /پیش از سایر هزینه‌هاست/);
+  const flavored = {...product, variants:['کوکاکولا','فانتا پرتقالی']};
+  const view = productDetail(flavored, {...data,products:[flavored]}, env);
+  const ordered = [
+    '🥤 نوشابه اورجینال ۲٫۵ لیتری',
+    '📦 تعداد در بسته: ۶ عدد',
+    '💳 قیمت مصرف‌کننده هر عدد: ۱۲۲٬۰۰۰ تومان',
+    '🏷 قیمت پایه هر عدد: ۱۰۹٬۰۱۷٫۸۳۳۳۳۳۳۳۳۳۳ تومان',
+    '💰 تمام‌شده با تخفیف یک بسته («طرح یک»): ۵۸۸٬۶۹۶٫۳ تومان',
+    '↳ میانگین تمام‌شده هر عدد: ۹۸٬۱۱۶٫۰۵ تومان',
+    '🎨 طعم‌ها: کوکاکولا، فانتا پرتقالی',
+  ];
+  const offsets = ordered.map(part => view.text.indexOf(part));
+  assert.ok(offsets.every(x => x >= 0), view.text);
+  assert.deepEqual([...offsets].sort((a,b) => a-b), offsets);
+  assert.doesNotMatch(view.text, /پایه هر بسته|حاشیه سود|ریال/);
   assert.ok(actions(view).includes('product-plans:P003:1'));
-  assert.ok(!actions(view).some(x => /^(final|price|prices):/.test(x)));
+  assert.ok(!actions(view).includes('variants:P003:1'));
+  assert.ok(!actions(view).some(x => /^(final|price|prices|add):/.test(x)));
 });
 
-test('do not invent one-pack discount or margin for multi-pack or unapproved rules', () => {
+test('no single-pack quote appears when quantity, approval, or policy is missing', () => {
   const minTwo = {...data, requirements: [{
     ...data.requirements[0], quantity_rule: 'MINIMUM', min_packs: '2',
   }]};
   assert.equal(approvedSinglePackOffer(product, minTwo, env), null);
-  assert.doesNotMatch(productDetail(product, minTwo, env).text, /۵۸۸٬۶۹۶٫۳|حاشیه سود ناخالص/);
+  const view = productDetail(product, minTwo, env);
+  assert.doesNotMatch(view.text, /۵۸۸٬۶۹۶٫۳|میانگین تمام‌شده|حاشیه سود/);
+  assert.match(view.text, /طرح تخفیفی دارد؛ قیمت یک بسته قابل اعلام نیست/);
+  assert.ok(actions(view).includes('product-plans:P003:1'));
   assert.equal(approvedSinglePackOffer(product, data, {}), null);
   assert.equal(approvedSinglePackOffer(product, data, {
     PRICE_POLICY_APPROVED:'true', ROUNDING_RULE:'UNAPPROVED',
@@ -54,21 +65,43 @@ test('do not invent one-pack discount or margin for multi-pack or unapproved rul
   assert.equal(approvedSinglePackOffer(product, {...data,plans:[]}, env), null);
 });
 
-test('retail approval and quantity basis constrain the displayed potential margin', () => {
-  const hiddenRetail = {...product,consumer_price:null};
-  const noRetailView = productDetail(hiddenRetail, {...data,products:[hiddenRetail]}, env);
-  assert.match(noRetailView.text, /قیمت مصرف‌کننده معتبر برای محاسبه موجود نیست/);
-  assert.doesNotMatch(noRetailView.text, /۱۴۳٬۳۰۳٫۷|۱۹٫۵۸٪/);
+test('missing retail price and invalid pack quantity never fabricate monetary details', () => {
+  const hiddenRetail = {...product, consumer_price:null};
+  const noRetail = productDetail(hiddenRetail, {...data,products:[hiddenRetail]}, env);
+  assert.match(noRetail.text, /قیمت مصرف‌کننده: منتشر نشده/);
+  assert.match(noRetail.text, /میانگین تمام‌شده هر عدد: ۹۸٬۱۱۶٫۰۵ تومان/);
   const packRetail = {...product, consumer_price:{amountIRR:'5500000',basis:'PACK'}};
-  const packView = productDetail(packRetail, {...data,products:[packRetail]}, env);
-  assert.match(packView.text, /مصرف‌کننده هر بسته: ۵۵۰٬۰۰۰ تومان/);
-  assert.match(packView.text, /حاشیه سود ناخالص احتمالی: −۳۸٬۶۹۶٫۳ تومان \(−۷٫۰۴٪\)/);
-  const invalidQty = {...product, units_per_pack:'0'};
-  const invalidView = productDetail(invalidQty, {...data,products:[invalidQty]}, env);
-  assert.doesNotMatch(invalidView.text, /حاشیه سود ناخالص احتمالی/);
+  assert.match(productDetail(packRetail, {...data,products:[packRetail]}, env).text,
+    /قیمت مصرف‌کننده هر بسته: ۵۵۰٬۰۰۰ تومان/);
+  const invalid = {...product, units_per_pack:'0'};
+  const invalidView = productDetail(invalid, {...data,products:[invalid]}, env);
+  assert.match(invalidView.text, /تعداد در بسته: نامشخص/);
+  assert.doesNotMatch(invalidView.text, /میانگین تمام‌شده هر عدد/);
 });
 
-test('a manipulated multi-pack plan cannot invent a single-pack tier', () => {
+test('repeating average is marked approximate; no rounding claim is invented', () => {
+  const unusual = {...product, units_per_pack:'7'};
+  const view = productDetail(unusual, {...data, products:[unusual]}, env);
+  assert.match(view.text, /میانگین تمام‌شده هر عدد: حدود ۸۴٬۰۹۹٫۴۷۱۴ تومان/);
+});
+
+test('without a standalone tier, only approved plan hints are visible', () => {
+  const d002={plan_id:'D002',plan_name:'طرح ترکیبی',discount_percent:'13'};
+  const combined={...data, plans:[plan,d002],
+    links:[...data.links,{product_id:product.product_id,plan_id:'D002'}],
+    targets:[...data.targets,{plan_id:'D002',group_id:'ORIGINAL_SODA'}],
+    requirements: [{...data.requirements[0], min_packs:'2'}],
+  };
+  const view=productDetail(product,combined,env);
+  assert.match(view.text,/طرح‌های تخفیفی متنوع و ترکیبی دارد/);
+  assert.doesNotMatch(view.text,/۵۸۸٬۶۹۶٫۳|میانگین تمام‌شده/);
+  const none={...data,plans:[]};
+  const noPlan=productDetail(product,none,env);
+  assert.match(noPlan.text,/قیمت تخفیفی یک‌بسته‌ای برای این محصول منتشر نشده است/);
+  assert.ok(!actions(noPlan).some(x => x.startsWith('product-plans:')));
+});
+
+test('manipulated multi-pack plan cannot invent a single-pack tier', () => {
   const alternative={plan_id:'D011',plan_name:'طرح دوازده درصد',discount_percent:'12'};
   const richer={...data,plans:[plan,alternative],
     links:[...data.links,{product_id:'P003',plan_id:'D011'}],
@@ -77,5 +110,5 @@ test('a manipulated multi-pack plan cannot invent a single-pack tier', () => {
       group_id:'ORIGINAL_CANADA_COMBINED',quantity_rule:'MINIMUM',min_packs:'1'}],
   };
   assert.equal(approvedSinglePackOffer(product,richer,env).plan.plan_id,'D001');
-  assert.doesNotMatch(productDetail(product,richer,env).text,/قیمت خرید یک بسته با «طرح دوازده درصد»/);
+  assert.doesNotMatch(productDetail(product,richer,env).text,/تمام‌شده با تخفیف یک بسته \(«طرح دوازده درصد»/);
 });

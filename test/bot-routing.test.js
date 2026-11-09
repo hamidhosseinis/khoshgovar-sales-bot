@@ -42,14 +42,15 @@ test('catalog entry opens families and every model remains accessible with searc
   assert.match(detail.text,/فرشی دی/);
   assert.ok(calls(detail).includes('family:sparkling-juice:1'));
 });
-test('consolidated nostalgic is a single product with a flavor button',async()=>{
+test('consolidated nostalgic shows approved flavors inline; legacy flavor route works',async()=>{
   const list=await replyTo(callback('family:original:2'));
   assert.ok(calls(list).includes('product:P010'));
   assert.ok(!calls(list).includes('product:P001'));
   assert.ok(!calls(list).includes('product:P002'));
   const detail=await replyTo(callback('product:P001'));
   assert.match(detail.text,/🥤 نوشابه نوستالژیک\n/);
-  assert.ok(calls(detail).includes('variants:P010:1'));
+  assert.match(detail.text, /🎨 طعم‌ها: کوکاکولا، فانتا پرتقالی/);
+  assert.ok(!calls(detail).includes('variants:P010:1'));
   const variants=await replyTo(callback('variants:P010:1'));
   assert.match(variants.text,/کوکاکولا/);
   assert.match(variants.text,/فانتا پرتقالی/);
