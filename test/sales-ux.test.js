@@ -131,5 +131,11 @@ test('cart preserves distinct approved model/flavor and previews only whole-toma
  assert.match(summary.text,/هر بطری/);
  assert.doesNotMatch(summary.text,/قیمت هر بسته|ریال(?!ی)|مبلغ قطعی فاکتور|✅ طرح با بیشترین صرفه‌جویی ریالی/);
  assert.equal(callbacks(summary).includes('cart-clear-confirm'),true);
+ assert.ok(callbacks(summary).includes('cart-plus:0:10'));
+ assert.ok(!summary.text.includes('۳ بسته شیر و دوغ'));
+ const bulk=changeQuantity([], 'O','کوکاکولا',10);
+ assert.equal(bulk[0].qty,10);
+ assert.equal(changeQuantity(bulk, 'O','کوکاکولا',-5)[0].qty,5);
+ assert.equal(changeQuantity(bulk, 'O','کوکاکولا',20)[0].qty,10);
  assert.equal(inGroup(d.products.find(x=>x.product_id==='W'),'NON_SODA_NON_DASANI'),false);
 });
