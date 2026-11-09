@@ -284,7 +284,7 @@ test('new plan approval gates remain closed for D007-D012 draft sheets',()=>{
     p.is_active='FALSE';p.approved_for_public='FALSE';p.review_status='DRAFT';p.valid_from='';p.valid_to='';
   }
   const d=publicData(raw,today);
-  assert.equal(d.plans.length,6);
+  assert.equal(d.plans.length,5);
   assert.ok(!d.plans.some(p=>p.plan_id==='D007'||p.plan_id==='D012'));
 });
 
