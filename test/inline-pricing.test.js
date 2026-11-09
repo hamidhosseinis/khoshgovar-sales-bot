@@ -67,7 +67,7 @@ test('retail approval and quantity basis constrain the displayed potential margi
   assert.doesNotMatch(invalidView.text, /حاشیه سود ناخالص احتمالی/);
 });
 
-test('among verified one-pack plans show the best available price, not the highest unqualified rate', () => {
+test('a manipulated multi-pack plan cannot invent a single-pack tier', () => {
   const alternative={plan_id:'D011',plan_name:'طرح دوازده درصد',discount_percent:'12'};
   const richer={...data,plans:[plan,alternative],
     links:[...data.links,{product_id:'P003',plan_id:'D011'}],
@@ -75,6 +75,6 @@ test('among verified one-pack plans show the best available price, not the highe
     requirements:[...data.requirements,{plan_id:'D011',
       group_id:'ORIGINAL_CANADA_COMBINED',quantity_rule:'MINIMUM',min_packs:'1'}],
   };
-  assert.equal(approvedSinglePackOffer(product,richer,env).plan.plan_id,'D011');
-  assert.match(productDetail(product,richer,env).text,/طرح دوازده درصد/);
+  assert.equal(approvedSinglePackOffer(product,richer,env).plan.plan_id,'D001');
+  assert.doesNotMatch(productDetail(product,richer,env).text,/قیمت خرید یک بسته با «طرح دوازده درصد»/);
 });
