@@ -129,7 +129,7 @@ test('cart preserves distinct approved model/flavor and previews only whole-toma
  assert.match(summary.text,/کوکاکولا/);
  assert.match(summary.text,/فانتا پرتقالی/);
  assert.match(summary.text,/هر بطری/);
- assert.doesNotMatch(summary.text,/قیمت هر بسته|ریال|قیمت نهایی قطعی|بهترین طرح ریالی:/);
+ assert.doesNotMatch(summary.text,/قیمت هر بسته|ریال|مبلغ قطعی فاکتور|✅ طرح با بیشترین صرفه‌جویی ریالی/);
  assert.equal(callbacks(summary).includes('cart-clear-confirm'),true);
  assert.equal(inGroup(d.products.find(x=>x.product_id==='W'),'NON_SODA_NON_DASANI'),false);
 });
