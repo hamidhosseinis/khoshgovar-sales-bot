@@ -1,6 +1,6 @@
 import { sheetCatalog } from './sheets.js';
 import {
-  card, welcome, mainMenu, mergePublicCatalog, productList, productFamilyList, priceList,
+  card, welcome, mainMenu, mergePublicCatalog, productList, productFamilyList,
   productDetail, unitDetail, variantsList, planList, planDetail,
   productPlanList, planProducts, planQuote, finalPriceList, searchPrompt, searchResults,
 } from './bot-ui.js';
@@ -40,20 +40,21 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
   if ((m = match(content, '^family:([a-z0-9-]{1,40}):([1-9]\\d{0,2})$')))
     return productFamilyList(data, m[1], page(m[2]));
 
-  if (['💰 لیست قیمت', '💰 قیمت‌ها', '/prices'].includes(content)) return priceList(data);
+  // Old price shortcuts redirect to the catalog; the separate price menu is gone.
+  if (['💰 لیست قیمت', '💰 قیمت‌ها', '/prices'].includes(content)) return productList(data);
   if ((m = match(content, '^prices:([1-9]\\d{0,2})$')) ||
       (m = match(content, '^/prices\\s+([1-9]\\d{0,2})$')))
-    return priceList(data, page(m[1]));
+    return productList(data, page(m[1]));
 
   if ((m = match(content, '^product:(' + idPattern + ')$')) ||
       (m = match(content, '^/product\\s+(' + idPattern + ')$'))) {
     const p = findProduct(m[1]);
-    return p ? productDetail(p, data) : notFound();
+    return p ? productDetail(p, data, env) : notFound();
   }
   if ((m = match(content, '^price:(' + idPattern + ')$')) ||
       (m = match(content, '^/price\\s+(' + idPattern + ')$'))) {
     const p = findProduct(m[1]);
-    return p ? productDetail(p, data, true) : notFound();
+    return p ? productDetail(p, data, env) : notFound();
   }
   if ((m = match(content, '^unit:(' + idPattern + ')$'))) {
     const p = findProduct(m[1]);
