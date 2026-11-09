@@ -33,13 +33,14 @@ test('six product sections stay in order; single-pack quote includes per-unit av
     '🥤 نوشابه اورجینال ۲٫۵ لیتری',
     '📦 تعداد در بسته: ۶ عدد',
     '💳 قیمت مصرف‌کننده هر بطری: ۱۲۲٬۰۰۰ تومان',
-    '🏷 قیمت پایه هر بطری: ۱۰۹٬۰۱۷٫۸۳۳۳۳۳۳۳۳۳۳ تومان',
-    '💰 قیمت تمام‌شده هر بطری با تخفیف («طرح یک»): ۹۸٬۱۱۶٫۰۵ تومان',
+    '🏷 قیمت پایه هر بطری: ۱۰۹٬۰۱۸ تومان',
+    '💰 قیمت تمام‌شده هر بطری با تخفیف («طرح یک»): ۹۸٬۱۱۷ تومان',
     '🎨 طعم‌ها: کوکاکولا، فانتا پرتقالی',
   ];
   const offsets = ordered.map(part => view.text.indexOf(part));
   assert.ok(offsets.every(x => x >= 0), view.text);
   assert.deepEqual([...offsets].sort((a,b) => a-b), offsets);
+  assert.doesNotMatch(view.text, /[۰-۹]٫[۰-۹]+ تومان|قیمت هر بسته/);
   assert.doesNotMatch(view.text, /پایه هر بسته|قیمت هر بسته|حاشیه سود|ریال|⚠️/);
   assert.ok(actions(view).includes('product-plans:P003:1'));
   assert.ok(!actions(view).includes('variants:P003:1'));
@@ -52,7 +53,7 @@ test('no single-pack quote appears when quantity, approval, or policy is missing
   }]};
   assert.equal(approvedSinglePackOffer(product, minTwo, env), null);
   const view = productDetail(product, minTwo, env);
-  assert.doesNotMatch(view.text, /۹۸٬۱۱۶٫۰۵|قیمت تمام‌شده هر بطری|حاشیه سود/);
+  assert.doesNotMatch(view.text, /۹۸٬۱۱۷|قیمت تمام‌شده هر بطری|حاشیه سود/);
   assert.match(view.text, /طرح تخفیفی دارد؛ قیمت هر بطری قابل اعلام نیست/);
   assert.ok(actions(view).includes('product-plans:P003:1'));
   assert.equal(approvedSinglePackOffer(product, data, {}), null);
@@ -68,20 +69,20 @@ test('missing retail price and invalid pack quantity never fabricate monetary de
   const hiddenRetail = {...product, consumer_price:null};
   const noRetail = productDetail(hiddenRetail, {...data,products:[hiddenRetail]}, env);
   assert.match(noRetail.text, /قیمت مصرف‌کننده هر بطری: منتشر نشده/);
-  assert.match(noRetail.text, /قیمت تمام‌شده هر بطری با تخفیف \(«طرح یک»\): ۹۸٬۱۱۶٫۰۵ تومان/);
+  assert.match(noRetail.text, /قیمت تمام‌شده هر بطری با تخفیف \(«طرح یک»\): ۹۸٬۱۱۷ تومان/);
   const packRetail = {...product, consumer_price:{amountIRR:'5500000',basis:'PACK'}};
   assert.match(productDetail(packRetail, {...data,products:[packRetail]}, env).text,
-    /قیمت مصرف‌کننده هر بطری: حدود ۹۱٬۶۶۶٫۶۶۶۷ تومان/);
+    /قیمت مصرف‌کننده هر بطری: ۹۱٬۶۶۷ تومان/);
   const invalid = {...product, units_per_pack:'0'};
   const invalidView = productDetail(invalid, {...data,products:[invalid]}, env);
   assert.match(invalidView.text, /تعداد در بسته: نامشخص/);
   assert.doesNotMatch(invalidView.text, /قیمت تمام‌شده هر بطری با تخفیف/);
 });
 
-test('repeating average is marked approximate; no rounding claim is invented', () => {
+test('repeating averages ceil to whole toman per bottle without approximate decimals', () => {
   const unusual = {...product, units_per_pack:'7'};
   const view = productDetail(unusual, {...data, products:[unusual]}, env);
-  assert.match(view.text, /قیمت تمام‌شده هر بطری با تخفیف \(«طرح یک»\): حدود ۸۴٬۰۹۹٫۴۷۱۴ تومان/);
+  assert.match(view.text, /قیمت تمام‌شده هر بطری با تخفیف \(«طرح یک»\): ۸۴٬۱۰۰ تومان/);
 });
 
 test('without a standalone tier, only approved plan hints are visible', () => {
@@ -93,7 +94,7 @@ test('without a standalone tier, only approved plan hints are visible', () => {
   };
   const view=productDetail(product,combined,env);
   assert.match(view.text,/طرح‌های تخفیفی متنوع و ترکیبی دارد/);
-  assert.doesNotMatch(view.text,/۹۸٬۱۱۶٫۰۵|قیمت تمام‌شده هر بطری/);
+  assert.doesNotMatch(view.text,/۹۸٬۱۱۷|قیمت تمام‌شده هر بطری/);
   const none={...data,plans:[]};
   const noPlan=productDetail(product,none,env);
   assert.match(noPlan.text,/قیمت تخفیفی یک‌بسته‌ای برای این محصول منتشر نشده است/);

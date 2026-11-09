@@ -4,7 +4,7 @@ import {
   PAGE_SIZE, mainMenu, welcome, mergePublicCatalog, productList, productFamilyList,
   productFamilies, productDetail,
   approvedSinglePackOffer, variantsList, planList, planCategories, planGroupList, planDetail, planQuote, planProducts,
-  finalPriceList, discountedToman, sheetToman, unitDetail, searchResults,
+  finalPriceList, discountedToman, discountedBottleToman, sheetToman, toman, unitDetail, searchResults,
 } from '../src/bot-ui.js';
 
 const priced = (id, name, base = '654107') => ({
@@ -48,7 +48,7 @@ test('catalog shows families first, then every published model with per-family p
   const detail = productDetail(products[0], data);
   assert.match(detail.text, /۱۲٬۲۰۰ تومان/);
   assert.match(detail.text, /تعداد در بسته: ۶ عدد/);
-  assert.match(detail.text, /قیمت پایه هر بطری: ۱۰۹٬۰۱۷٫۸۳۳۳۳۳۳۳۳۳۳ تومان/);
+  assert.match(detail.text, /قیمت پایه هر بطری: ۱۰۹٬۰۱۸ تومان/);
   assert.doesNotMatch(detail.text, /ریال|۶۵٬۴۱۰٫۷|طعم کوکاکولا/);
   assert.ok(!callbacks(detail).includes('final:P003:1'));
   assert.ok(callbacks(detail).includes('product-plans:P003:1'));
@@ -80,28 +80,36 @@ test('plans show terms and linked products without cart navigation', () => {
   assert.ok(callbacks(planProducts(plan, data)).includes('quote:P003:D001'));
   assert.ok(!callbacks(planDetail(plan, data)).includes('cart'));
 });
-test('source base prices are already toman; discount math preserves exact units', () => {
-  assert.equal(discountedToman('654107', 13), '۵۶۹٬۰۷۳٫۰۹ تومان');
-  assert.equal(discountedToman('883929', 10), '۷۹۵٬۵۳۶٫۱ تومان');
+test('display-only ceil rules keep all prices in whole toman per bottle', () => {
+  assert.equal(discountedToman('654107', 13), '۵۶۹٬۰۷۴ تومان');
+  assert.equal(discountedToman('883929', 10), '۷۹۵٬۵۳۷ تومان');
   assert.equal(sheetToman('883929'), '۸۸۳٬۹۲۹ تومان');
-  assert.equal(sheetToman('147321.5'), '۱۴۷٬۳۲۱٫۵ تومان');
-  assert.equal(sheetToman('109017.83333333333'), '۱۰۹٬۰۱۷٫۸۳۳۳۳۳۳۳۳۳۳ تومان');
-  assert.match(unitDetail(products[0]).text, /پایه هر بطری: ۱۰۹٬۰۱۷٫۸۳۳۳۳۳۳۳۳۳۳ تومان/);
+  assert.equal(sheetToman('147321.5'), '۱۴۷٬۳۲۲ تومان');
+  assert.equal(sheetToman('109017.83333333333'), '۱۰۹٬۰۱۸ تومان');
+  assert.match(unitDetail(products[0]).text, /پایه هر بطری: ۱۰۹٬۰۱۸ تومان/);
   assert.equal(discountedToman('bad', 10), null);
+  assert.equal(toman('11'), '۲ تومان');
+  assert.equal(toman('10'), '۱ تومان');
+  assert.equal(discountedBottleToman('883929', 10, 6), '۱۳۲٬۵۹۰ تومان');
+  assert.equal(discountedBottleToman('654107', 13, 6), '۹۴٬۸۴۶ تومان');
+  assert.equal(sheetToman('123.0000'), '۱۲۳ تومان');
   assert.match(unitDetail(products[0]).text, /پایه هر بطری/);
   assert.doesNotMatch(unitDetail(products[0]).text, /پایه هر بسته|مالیات/);
   const quote = planQuote(products[0], plan, data);
-  assert.match(quote.text, /۹۸٬۱۱۶٫۰۵ تومان/);
+  assert.match(quote.text, /۹۸٬۱۱۷ تومان/);
   assert.doesNotMatch(quote.text, /⚠️|مالیات و گردکردن هنوز قطعی نیست|هر بسته/);
   assert.doesNotMatch(quote.text, /ریال|فانتا پرتقالی/);
   const full = finalPriceList(products[0], data);
-  assert.match(full.text, /۹۸٬۱۱۶٫۰۵ تومان/);
+  assert.match(full.text, /۹۸٬۱۱۷ تومان/);
   assert.ok(!callbacks(full).includes('cart'));
   assert.match(variantsList(products[0]).text, /کوکاکولا/);
   assert.match(quote.text, /قیمت محاسباتی هر بطری پس از تخفیف/);
   assert.match(full.text, /قیمت محاسباتی هر بطری پس از تخفیف/);
   assert.doesNotMatch(full.text, /هر بسته|⚠️|مالیات\/گردکردن/);
   assert.match(planProducts(plan, data).text, /هر بطری/);
+  for (const view of [productDetail(products[0], data), unitDetail(products[0]), quote, full]) {
+    assert.doesNotMatch(view.text, /ریال|قیمت هر بسته|پایه هر بسته|[۰-۹]٫[۰-۹]+ تومان/);
+  }
 });
 test('not approved base or unlinked plan never yields a fabricated quote', () => {
   const unknown = { ...products[0], box_base_price: null };

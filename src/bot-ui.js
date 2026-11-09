@@ -50,43 +50,36 @@ export function mergePublicCatalog(data) {
   return { ...data, products: data.products.filter(p =>
     p.product_id !== 'P001' && p.product_id !== 'P002') };
 }
-// Consumer and legacy monetary-evaluation amounts use IRR. The canonical
-// base_price_per_box and box_unit_base_price columns use TOMAN, not IRR.
-// Never divide those source amounts by 10 when displaying them.
-function renderToman(numerator, divisor = 10n) {
-  const n = BigInt(numerator), whole = n / divisor, fraction = n % divisor;
-  const places = divisor.toString().length - 1;
-  const decimal = fraction.toString().padStart(places, '0').replace(/0+$/, '');
-  return fa(whole.toLocaleString('en-US').replaceAll(',', '٬')) + (decimal ? '٫' + fa(decimal) : '') + ' تومان';
+// Canonical base prices are in TOMAN; approved legacy/consumer values use IRR.
+// Customer-facing prices are *always* whole toman, per bottle, rounded UP.
+// Never round or overwrite source values or internally approved financial math.
+function renderToman(numerator, divisor = 1n) {
+  const n = BigInt(numerator), d = BigInt(divisor);
+  if (n < 0n || d <= 0n) return null;
+  const roundedUp = (n + d - 1n) / d;
+  return fa(roundedUp.toLocaleString('en-US').replaceAll(',', '٬')) + ' تومان';
 }
-export const toman = amountIRR => renderToman(amountIRR);
-// Preserve the exact decimal string provided by the canonical Sheet, including
-// formula precision. Only add thousands separators and Persian digits.
+export const toman = amountIRR => renderToman(amountIRR, 10n);
+// Parse source decimals as strings to avoid floating-point under-rounding.
 export function sheetToman(value) {
   const raw = String(value ?? '').trim();
   if (!/^(?:[1-9]\d*(?:\.\d+)?|0\.\d*[1-9]\d*)$/.test(raw)) return null;
-  const [integer, fraction] = raw.split('.');
-  return fa(BigInt(integer).toLocaleString('en-US').replaceAll(',', '٬')) +
-    (fraction ? '٫' + fa(fraction) : '') + ' تومان';
+  const [integer, fraction = ''] = raw.split('.');
+  return renderToman(BigInt(integer) + (/[1-9]/.test(fraction) ? 1n : 0n));
 }
 export function discountedToman(baseToman, percent) {
   if (!/^[1-9]\d*$/.test(String(baseToman)) ||
       !Number.isSafeInteger(Number(percent)) ||
       Number(percent) < 0 || Number(percent) > 100) return null;
-  // A whole-percent discount on integer toman is exact to 0.01 toman.
   return renderToman(BigInt(baseToman) * BigInt(100 - Number(percent)), 100n);
 }
-// Amounts in IRR have a divisor of 10, discounted whole-toman amounts 100.
-// A per-bottle figure is a display-only average, never an independent sale price.
+// Divide internal pack inputs only to derive a per-bottle display amount.
+// Ceil the exact rational *once*, at the final display step in whole toman.
 function perBottleToman(numerator, unitsPerPack, sourceDivisor = 1n) {
   if (!/^(?:0|[1-9]\d*)$/.test(String(numerator ?? '')) ||
       !/^[1-9]\d*$/.test(String(unitsPerPack ?? '')) ||
       BigInt(unitsPerPack) > 10000n) return null;
-  const divisor = BigInt(unitsPerPack) * sourceDivisor;
-  const scaled = BigInt(numerator) * 10000n;
-  const whole = scaled / divisor, remainder = scaled % divisor;
-  const rounded = whole + (remainder * 2n >= divisor ? 1n : 0n);
-  return (remainder ? 'حدود ' : '') + renderToman(rounded, 10000n);
+  return renderToman(BigInt(numerator), BigInt(unitsPerPack) * sourceDivisor);
 }
 export function discountedBottleToman(baseBoxToman, percent, unitsPerPack) {
   if (!/^[1-9]\d*$/.test(String(baseBoxToman)) ||
@@ -105,7 +98,7 @@ const consumerText = p => {
   return amount ? '💳 قیمت مصرف‌کننده هر بطری: ' + amount : null;
 };
 const unitBaseText = p => {
-  const amount = p.box_base_price && sheetToman(p.box_base_price.unitRawToman);
+  const amount = p.box_base_price && perBottleToman(p.box_base_price.amountToman, p.units_per_pack);
   return amount ? '🏷 قیمت پایه هر بطری: ' + amount : null;
 };
 function compatiblePlans(p, data) {
@@ -136,9 +129,9 @@ export function approvedSinglePackOffer(product, data, env) {
   }
   return best;
 }
-// A unit amount is an arithmetic average of the approved PACK price, not a
-// separately rounded/saleable unit quote. Mark non-terminating decimals as
-// approximate; do not silently invent a per-unit rounding policy.
+// An approved pack amount is averaged only for customer display; the
+// canonical display policy rounds up to whole toman per bottle. Internal
+// pack-level invoice calculations and their approved rounding stay untouched.
 function averageUnitToman(priceIRR, unitsPerPack) {
   return perBottleToman(priceIRR, unitsPerPack, 10n);
 }
@@ -276,7 +269,7 @@ export function variantsList(p, page = 1) {
 }
 export function unitDetail(p) {
   if (!p.box_base_price) return card('برای این محصول قیمت پایه عمومی موجود نیست.');
-  const unit = sheetToman(p.box_base_price.unitRawToman) || 'نامشخص';
+  const unit = perBottleToman(p.box_base_price.amountToman, p.units_per_pack) || 'نامشخص';
   return card('🏷 ' + p.product_name + '\nپایه هر بطری: ' + unit, [
     [key('🔙 مشخصات', 'product:' + p.product_id)],
   ]);
@@ -384,7 +377,7 @@ export function productPlanList(p, data, page = 1) {
 export function planQuote(p, plan, data) {
   if (!compatiblePlans(p, data).some(x => x.plan_id === plan.plan_id))
     return card('این طرح برای محصول انتخابی منتشر نشده است.');
-  const baseBottle = p.box_base_price && sheetToman(p.box_base_price.unitRawToman);
+  const baseBottle = p.box_base_price && perBottleToman(p.box_base_price.amountToman, p.units_per_pack);
   const price = p.box_base_price
     ? discountedBottleToman(p.box_base_price.amountToman,
       plan.discount_percent, p.units_per_pack) : null;
@@ -402,7 +395,7 @@ export function planQuote(p, plan, data) {
 }
 export function finalPriceList(p, data, page = 1) {
   const plans = compatiblePlans(p, data);
-  const baseBottle = p.box_base_price && sheetToman(p.box_base_price.unitRawToman);
+  const baseBottle = p.box_base_price && perBottleToman(p.box_base_price.amountToman, p.units_per_pack);
   if (!baseBottle || !/^[1-9]\d*$/.test(String(p.units_per_pack ?? '')) ||
       BigInt(p.units_per_pack) > 10000n)
     return card('💰 قیمت هر بطری ' + p.product_name +
