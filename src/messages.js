@@ -8,7 +8,6 @@ const TEXT = Object.freeze({
   products: '📦 هنوز کاتالوگ تأییدشده‌ای برای نمایش عمومی منتشر نشده است.',
   offers: '🏷 فعلاً طرح فروش معتبر و تأییدشده‌ای منتشر نشده است.',
   pricing: '💰 محاسبه قیمت پس از تأیید مبنا و قوانین فروش فعال می‌شود.\nفعلاً مبلغی نمایش داده نمی‌شود.',
-  cart: '🛒 سبد خرید فعلاً در دسترس نیست.',
   help: 'از دکمه‌های شیشه‌ای پیام استفاده کنید.\nفقط اطلاعات دارای مجوز انتشار نمایش داده می‌شود.',
   adminDenied: 'این بخش در دسترس نیست.',
   adminPending: 'هویت مدیر تأیید شد. امکانات مدیریت هنوز فعال نشده‌اند؛ هیچ داده داخلی در این نسخه قابل دریافت یا ویرایش نیست.',
@@ -36,8 +35,6 @@ export function publicReply(message, env) {
     case '💰 قیمت‌ها':
     case '🧮 محاسبه قیمت':
       text = TEXT.pricing; break;
-    case '🛒 سبد خرید':
-      text = TEXT.cart; break;
     case '/admin':
       text = isAuthorizedAdmin(message, env) ? TEXT.adminPending : TEXT.adminDenied; break;
   }
