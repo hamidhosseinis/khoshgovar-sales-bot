@@ -79,8 +79,8 @@ export function discountedToman(baseToman, percent) {
 // Amounts in IRR have a divisor of 10, discounted whole-toman amounts 100.
 // A per-bottle figure is a display-only average, never an independent sale price.
 function perBottleToman(numerator, unitsPerPack, sourceDivisor = 1n) {
-  if (!/^(?:0|[1-9]\\d*)$/.test(String(numerator ?? '')) ||
-      !/^[1-9]\\d*$/.test(String(unitsPerPack ?? '')) ||
+  if (!/^(?:0|[1-9]\d*)$/.test(String(numerator ?? '')) ||
+      !/^[1-9]\d*$/.test(String(unitsPerPack ?? '')) ||
       BigInt(unitsPerPack) > 10000n) return null;
   const divisor = BigInt(unitsPerPack) * sourceDivisor;
   const scaled = BigInt(numerator) * 10000n;
@@ -89,7 +89,7 @@ function perBottleToman(numerator, unitsPerPack, sourceDivisor = 1n) {
   return (remainder ? 'حدود ' : '') + renderToman(rounded, 10000n);
 }
 export function discountedBottleToman(baseBoxToman, percent, unitsPerPack) {
-  if (!/^[1-9]\\d*$/.test(String(baseBoxToman)) ||
+  if (!/^[1-9]\d*$/.test(String(baseBoxToman)) ||
       !Number.isSafeInteger(Number(percent)) ||
       Number(percent) < 0 || Number(percent) > 100) return null;
   return perBottleToman(BigInt(baseBoxToman) * BigInt(100 - Number(percent)),
@@ -403,7 +403,7 @@ export function planQuote(p, plan, data) {
 export function finalPriceList(p, data, page = 1) {
   const plans = compatiblePlans(p, data);
   const baseBottle = p.box_base_price && sheetToman(p.box_base_price.unitRawToman);
-  if (!baseBottle || !/^[1-9]\\d*$/.test(String(p.units_per_pack ?? '')) ||
+  if (!baseBottle || !/^[1-9]\d*$/.test(String(p.units_per_pack ?? '')) ||
       BigInt(p.units_per_pack) > 10000n)
     return card('💰 قیمت هر بطری ' + p.product_name +
     '\nقیمت پایه با مجوز انتشار یا تعداد معتبر موجود نیست؛ محاسبه انجام نشد.', [
