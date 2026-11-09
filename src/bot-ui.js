@@ -76,11 +76,38 @@ export function discountedToman(baseToman, percent) {
   // A whole-percent discount on integer toman is exact to 0.01 toman.
   return renderToman(BigInt(baseToman) * BigInt(100 - Number(percent)), 100n);
 }
-const consumerText = p => p.consumer_price
-  ? '💳 قیمت مصرف‌کننده هر ' + (p.consumer_price.basis === 'PACK' ? 'بسته' : 'عدد') +
-    ': ' + toman(p.consumer_price.amountIRR) : null;
-const unitBaseText = p => p.box_base_price
-  ? '🏷 قیمت پایه هر عدد: ' + sheetToman(p.box_base_price.unitRawToman) : null;
+// Amounts in IRR have a divisor of 10, discounted whole-toman amounts 100.
+// A per-bottle figure is a display-only average, never an independent sale price.
+function perBottleToman(numerator, unitsPerPack, sourceDivisor = 1n) {
+  if (!/^(?:0|[1-9]\\d*)$/.test(String(numerator ?? '')) ||
+      !/^[1-9]\\d*$/.test(String(unitsPerPack ?? '')) ||
+      BigInt(unitsPerPack) > 10000n) return null;
+  const divisor = BigInt(unitsPerPack) * sourceDivisor;
+  const scaled = BigInt(numerator) * 10000n;
+  const whole = scaled / divisor, remainder = scaled % divisor;
+  const rounded = whole + (remainder * 2n >= divisor ? 1n : 0n);
+  return (remainder ? 'حدود ' : '') + renderToman(rounded, 10000n);
+}
+export function discountedBottleToman(baseBoxToman, percent, unitsPerPack) {
+  if (!/^[1-9]\\d*$/.test(String(baseBoxToman)) ||
+      !Number.isSafeInteger(Number(percent)) ||
+      Number(percent) < 0 || Number(percent) > 100) return null;
+  return perBottleToman(BigInt(baseBoxToman) * BigInt(100 - Number(percent)),
+    unitsPerPack, 100n);
+}
+const consumerText = p => {
+  if (!p.consumer_price) return null;
+  const amount = p.consumer_price.basis === 'UNIT'
+    ? toman(p.consumer_price.amountIRR)
+    : p.consumer_price.basis === 'PACK'
+      ? perBottleToman(p.consumer_price.amountIRR, p.units_per_pack, 10n)
+      : null;
+  return amount ? '💳 قیمت مصرف‌کننده هر بطری: ' + amount : null;
+};
+const unitBaseText = p => {
+  const amount = p.box_base_price && sheetToman(p.box_base_price.unitRawToman);
+  return amount ? '🏷 قیمت پایه هر بطری: ' + amount : null;
+};
 function compatiblePlans(p, data) {
   return data.plans.filter(plan => planAppliesToProduct(p, plan, data));
 }
@@ -113,13 +140,7 @@ export function approvedSinglePackOffer(product, data, env) {
 // separately rounded/saleable unit quote. Mark non-terminating decimals as
 // approximate; do not silently invent a per-unit rounding policy.
 function averageUnitToman(priceIRR, unitsPerPack) {
-  const count = String(unitsPerPack ?? '');
-  if (!/^[1-9]\d*$/.test(count) || BigInt(count) > 10000n) return null;
-  const divisor = BigInt(count) * 10n; // IRR per pack -> toman per unit
-  const scaled = BigInt(priceIRR) * 10000n;
-  const whole = scaled / divisor, remainder = scaled % divisor;
-  const value = whole + (remainder * 2n >= divisor ? 1n : 0n);
-  return (remainder ? 'حدود ' : '') + renderToman(value, 10000n);
+  return perBottleToman(priceIRR, unitsPerPack, 10n);
 }
 
 const catalogRules = [
@@ -213,19 +234,19 @@ export function productDetail(p, data, env = {}) {
   lines.push('📦 تعداد در بسته: ' +
     (/^[1-9]\d*$/.test(String(p.units_per_pack ?? ''))
       ? fmt(p.units_per_pack) + ' عدد' : 'نامشخص'));
-  lines.push(consumerText(p) || '💳 قیمت مصرف‌کننده: منتشر نشده');
-  lines.push(unitBaseText(p) || '🏷 قیمت پایه هر عدد: منتشر نشده');
+  lines.push(consumerText(p) || '💳 قیمت مصرف‌کننده هر بطری: منتشر نشده');
+  lines.push(unitBaseText(p) || '🏷 قیمت پایه هر بطری: منتشر نشده');
 
   const offer = approvedSinglePackOffer(p, data, env);
   if (offer) {
-    lines.push('💰 تمام‌شده با تخفیف یک بسته («' + offer.plan.plan_name + '»): ' +
-      toman(offer.priceIRR));
-    const perUnit = averageUnitToman(offer.priceIRR, p.units_per_pack);
-    if (perUnit) lines.push('↳ میانگین تمام‌شده هر عدد: ' + perUnit);
+    const perBottle = averageUnitToman(offer.priceIRR, p.units_per_pack);
+    if (perBottle) lines.push('💰 قیمت تمام‌شده هر بطری با تخفیف («' +
+      offer.plan.plan_name + '»): ' + perBottle);
+    else lines.push('💡 قیمت تخفیفی هر بطری قابل اعلام نیست.');
   } else if (plans.length > 1) {
     lines.push('💡 این محصول طرح‌های تخفیفی متنوع و ترکیبی دارد؛ شرایط را ببینید.');
   } else if (plans.length) {
-    lines.push('💡 این محصول طرح تخفیفی دارد؛ قیمت یک بسته قابل اعلام نیست.');
+    lines.push('💡 این محصول طرح تخفیفی دارد؛ قیمت هر بطری قابل اعلام نیست.');
   } else {
     lines.push('💡 قیمت تخفیفی یک‌بسته‌ای برای این محصول منتشر نشده است.');
   }
@@ -256,10 +277,7 @@ export function variantsList(p, page = 1) {
 export function unitDetail(p) {
   if (!p.box_base_price) return card('برای این محصول قیمت پایه عمومی موجود نیست.');
   const unit = sheetToman(p.box_base_price.unitRawToman) || 'نامشخص';
-  return card('🏷 ' + p.product_name + '\nپایه هر بسته: ' +
-    sheetToman(p.box_base_price.amountToman) +
-    '\nپایه هر عدد: ' + unit +
-    '\nوضعیت شمول مالیات تأیید نشده است.', [
+  return card('🏷 ' + p.product_name + '\nپایه هر بطری: ' + unit, [
     [key('🔙 مشخصات', 'product:' + p.product_id)],
   ]);
 }
@@ -339,7 +357,7 @@ export function planProducts(plan, data, page = 1) {
   const v = pageOf(items, page);
   if (!v) return card('این صفحه در دسترس نیست.');
   return card('💰 ' + plan.plan_name +
-    '\nمحصول را برای محاسبه قیمت هر بسته انتخاب کنید.\n' +
+    '\nمحصول را برای مشاهده قیمت محاسباتی هر بطری انتخاب کنید.\n' +
     'مبالغ تنها در صورت تحقق شرایط طرح معتبرند.', [
     ...v.items.map(p => [key(p.product_name, 'quote:' + p.product_id + ':' + plan.plan_id)]),
     ...(pageButtons(page, v.pages, 'plan-items:' + plan.plan_id).length
@@ -355,7 +373,7 @@ export function productPlanList(p, data, page = 1) {
   const v = pageOf(plans, page);
   if (!v) return card('این صفحه در دسترس نیست.');
   return card('🏷 طرح‌های ' + p.product_name +
-    '\nقیمت هر بسته، مستقل از طعم محاسبه می‌شود.', [
+    '\nقیمت هر بطری، مستقل از طعم محاسبه می‌شود.', [
     ...v.items.map(plan => [key(plan.plan_name + ' | ' + fmt(plan.discount_percent) + '٪',
       'quote:' + p.product_id + ':' + plan.plan_id)]),
     ...(pageButtons(page, v.pages, 'product-plans:' + p.product_id).length
@@ -366,15 +384,16 @@ export function productPlanList(p, data, page = 1) {
 export function planQuote(p, plan, data) {
   if (!compatiblePlans(p, data).some(x => x.plan_id === plan.plan_id))
     return card('این طرح برای محصول انتخابی منتشر نشده است.');
+  const baseBottle = p.box_base_price && sheetToman(p.box_base_price.unitRawToman);
   const price = p.box_base_price
-    ? discountedToman(p.box_base_price.amountToman, plan.discount_percent) : null;
+    ? discountedBottleToman(p.box_base_price.amountToman,
+      plan.discount_percent, p.units_per_pack) : null;
   const lines = ['💰 ' + p.product_name, '🏷 ' + plan.plan_name +
     ' (' + fmt(plan.discount_percent) + '٪)'];
-  if (p.box_base_price && price) {
-    lines.push('پایه هر بسته: ' + sheetToman(p.box_base_price.amountToman));
-    lines.push('پس از کسر تخفیف: ' + price);
-  } else lines.push('قیمت پایه تأییدشده برای محاسبه موجود نیست.');
-  lines.push('⚠️ فقط محاسبه بر مبنای قیمت پایه است؛ قیمت نهایی با مالیات و گردکردن هنوز قطعی نیست.');
+  if (baseBottle && price) {
+    lines.push('قیمت پایه هر بطری: ' + baseBottle);
+    lines.push('قیمت محاسباتی هر بطری پس از تخفیف: ' + price);
+  } else lines.push('قیمت پایه تأییدشده هر بطری برای محاسبه موجود نیست.');
   lines.push('اعمال طرح منوط به رعایت تمام شروط آن است.');
   return card(lines.join('\n'), [
     [key('🏷 شرایط طرح', 'plan:' + plan.plan_id)],
@@ -383,26 +402,30 @@ export function planQuote(p, plan, data) {
 }
 export function finalPriceList(p, data, page = 1) {
   const plans = compatiblePlans(p, data);
-  if (!p.box_base_price) return card('💰 قیمت تمام‌شده ' + p.product_name +
-    '\nقیمت پایه با مجوز انتشار موجود نیست؛ محاسبه انجام نشد.', [
+  const baseBottle = p.box_base_price && sheetToman(p.box_base_price.unitRawToman);
+  if (!baseBottle || !/^[1-9]\\d*$/.test(String(p.units_per_pack ?? '')) ||
+      BigInt(p.units_per_pack) > 10000n)
+    return card('💰 قیمت هر بطری ' + p.product_name +
+    '\nقیمت پایه با مجوز انتشار یا تعداد معتبر موجود نیست؛ محاسبه انجام نشد.', [
     [key('🔙 مشخصات محصول', 'product:' + p.product_id)],
   ]);
   if (!plans.length) return card('💰 ' + p.product_name +
-    '\nطرح تخفیف عمومی مرتبط با این محصول ثبت نشده است.\nپایه هر بسته: ' +
-    sheetToman(p.box_base_price.amountToman), [
+    '\nطرح تخفیف عمومی مرتبط با این محصول ثبت نشده است.\nپایه هر بطری: ' +
+    baseBottle, [
     [key('🔙 مشخصات محصول', 'product:' + p.product_id)],
   ]);
   const v = pageOf(plans, page);
   if (!v) return card('این صفحه در دسترس نیست.');
-  const lines = ['💰 ' + p.product_name, 'پایه هر بسته: ' +
-    sheetToman(p.box_base_price.amountToman), 'قیمت هر بسته پس از تخفیف:'];
+  const lines = ['💰 ' + p.product_name, 'قیمت پایه هر بطری: ' +
+    baseBottle, 'قیمت محاسباتی هر بطری پس از تخفیف:'];
   for (const plan of v.items) {
-    const price = discountedToman(p.box_base_price.amountToman, plan.discount_percent);
+    const price = discountedBottleToman(p.box_base_price.amountToman,
+      plan.discount_percent, p.units_per_pack);
     if (price) lines.push('• ' + plan.plan_name + ' (' +
       fmt(plan.discount_percent) + '٪): ' + price);
   }
   lines.push('🎨 تمام طعم‌های این محصول قیمت یکسان دارند.');
-  lines.push('⚠️ محاسبه از پایه است؛ مالیات/گردکردن تأیید نشده و شروط طرح الزامی‌اند.');
+  lines.push('اعمال تخفیف منوط به رعایت تمام شروط طرح است.');
   return card(lines.join('\n'), [
     ...(pageButtons(page, v.pages, 'final:' + p.product_id).length
       ? [pageButtons(page, v.pages, 'final:' + p.product_id)] : []),
