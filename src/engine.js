@@ -20,7 +20,8 @@ export function publicConsumerPrice(p, today) {
     ? { amountIRR: String(amount), basis: p.consumer_price_basis }
     : null;
 }
-// base_price_per_box is authoritative. The per-unit figure is a consistency
+// base_price_per_box is authoritative and denominated in TOMAN. The per-unit
+// figure is a consistency
 // check only: multiplying a rounded unit value must never change the box base.
 // Spreadsheet floating-point formula outputs may differ in their final digits.
 export function verifiedBoxBase(p) {
@@ -38,7 +39,7 @@ export function verifiedBoxBase(p) {
   if (perUnit <= 0n) return null;
   const diff = box * scale - perUnit * count;
   const absDiff = diff < 0n ? -diff : diff;
-  // At integer precision allow up to half an IRR per unit. For formula
+  // At integer precision allow up to half a toman per unit. For formula
   // decimals allow half the last meaningful (up to 8th) decimal position.
   const roundingUnit = decimals.length > 8 ? 10n ** BigInt(decimals.length - 8) : 1n;
   if (absDiff * 2n > count * roundingUnit) return null;
@@ -49,14 +50,21 @@ export function verifiedBoxBase(p) {
 export function publicBoxBase(p) {
   if (!allowed(p.base_box_price_approved_for_public)) return null;
   const amount = verifiedBoxBase(p);
-  return amount ? { amountIRR: amount, unitRawIRR: String(p.box_unit_base_price).trim(),
+  return amount ? { amountToman: amount, unitRawToman: String(p.box_unit_base_price).trim(),
     basis: 'PACK', taxVerified: false } : null;
 }
 function approvedPackBase(p) {
   if (!allowed(p.final_price_approved_for_public) ||
       p.base_price_basis !== 'PACK_WITH_TAX') return null;
   const suppliedBox = String(p.base_price_per_box ?? '').trim();
-  if (suppliedBox) return verifiedBoxBase(p);
+  if (suppliedBox) {
+    const boxToman = verifiedBoxBase(p);
+    if (!boxToman) return null;
+    // Monetary evaluation and HALF_UP_IRR rounding operate in rials. Convert
+    // only internally; customer-facing box prices remain unchanged in toman.
+    const rials = BigInt(boxToman) * 10n;
+    return rials <= BigInt(Number.MAX_SAFE_INTEGER) ? String(rials) : null;
+  }
   // Backwards compatible with explicitly verified legacy PACK_WITH_TAX data.
   const legacy = String(p.base_price_irr ?? '').trim();
   return /^[1-9]\d*$/.test(legacy) && BigInt(legacy) <= BigInt(Number.MAX_SAFE_INTEGER)

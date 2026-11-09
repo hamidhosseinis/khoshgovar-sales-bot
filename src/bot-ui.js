@@ -50,8 +50,9 @@ export function mergePublicCatalog(data) {
   return { ...data, products: data.products.filter(p =>
     p.product_id !== 'P001' && p.product_id !== 'P002') };
 }
-// Keep currency conversion exact: all approved source amounts use IRR.
-// The divisor is 10 for source IRR, 1000 for (IRR × whole discount percent).
+// Consumer and legacy monetary-evaluation amounts use IRR. The canonical
+// base_price_per_box and box_unit_base_price columns use TOMAN, not IRR.
+// Never divide those source amounts by 10 when displaying them.
 function renderToman(numerator, divisor = 10n) {
   const n = BigInt(numerator), whole = n / divisor, fraction = n % divisor;
   const places = divisor.toString().length - 1;
@@ -59,17 +60,29 @@ function renderToman(numerator, divisor = 10n) {
   return fa(whole.toLocaleString('en-US').replaceAll(',', '٬')) + (decimal ? '٫' + fa(decimal) : '') + ' تومان';
 }
 export const toman = amountIRR => renderToman(amountIRR);
-export function discountedToman(baseIRR, percent) {
-  if (!/^[1-9]\d*$/.test(String(baseIRR)) ||
+// Preserve the exact decimal string provided by the canonical Sheet, including
+// formula precision. Only add thousands separators and Persian digits.
+export function sheetToman(value) {
+  const raw = String(value ?? '').trim();
+  if (!/^(?:[1-9]\d*(?:\.\d+)?|0\.\d*[1-9]\d*)$/.test(raw)) return null;
+  const [integer, fraction] = raw.split('.');
+  return fa(BigInt(integer).toLocaleString('en-US').replaceAll(',', '٬')) +
+    (fraction ? '٫' + fa(fraction) : '') + ' تومان';
+}
+export function discountedToman(baseToman, percent) {
+  if (!/^[1-9]\d*$/.test(String(baseToman)) ||
       !Number.isSafeInteger(Number(percent)) ||
       Number(percent) < 0 || Number(percent) > 100) return null;
-  return renderToman(BigInt(baseIRR) * BigInt(100 - Number(percent)), 1000n);
+  // A whole-percent discount on integer toman is exact to 0.01 toman.
+  return renderToman(BigInt(baseToman) * BigInt(100 - Number(percent)), 100n);
 }
 const consumerText = p => p.consumer_price
   ? '💳 مصرف‌کننده هر ' + (p.consumer_price.basis === 'PACK' ? 'بسته' : 'عدد') +
     ': ' + toman(p.consumer_price.amountIRR) : null;
 const baseText = p => p.box_base_price
-  ? '🏷 پایه هر بسته: ' + toman(p.box_base_price.amountIRR) : null;
+  ? '🏷 پایه هر بسته: ' + sheetToman(p.box_base_price.amountToman) : null;
+const unitBaseText = p => p.box_base_price
+  ? '🏷 پایه هر عدد: ' + sheetToman(p.box_base_price.unitRawToman) : null;
 function compatiblePlans(p, data) {
   return data.plans.filter(plan => planAppliesToProduct(p, plan, data));
 }
@@ -209,6 +222,7 @@ export function productDetail(p, data, env = {}) {
   if (p.variants?.length) lines.push('🎨 این محصول شامل طعم‌های زیر است:\n' + p.variants.join('، '));
   if (consumerText(p)) lines.push(consumerText(p));
   if (baseText(p)) lines.push(baseText(p));
+  if (unitBaseText(p)) lines.push(unitBaseText(p));
   if (!consumerText(p) && !baseText(p))
     lines.push('قیمت عمومی برای این محصول ثبت نشده است.');
   const offer = approvedSinglePackOffer(p, data, env);
@@ -250,12 +264,10 @@ export function variantsList(p, page = 1) {
 }
 export function unitDetail(p) {
   if (!p.box_base_price) return card('برای این محصول قیمت پایه عمومی موجود نیست.');
-  const raw = Number(p.box_base_price.unitRawIRR);
-  const unit = Number.isFinite(raw) && raw > 0
-    ? (raw / 10).toLocaleString('fa-IR', { maximumFractionDigits: 3 }) + ' تومان' : 'نامشخص';
+  const unit = sheetToman(p.box_base_price.unitRawToman) || 'نامشخص';
   return card('🏷 ' + p.product_name + '\nپایه هر بسته: ' +
-    toman(p.box_base_price.amountIRR) +
-    '\nپایه هر عدد (تقریبی): ' + unit +
+    sheetToman(p.box_base_price.amountToman) +
+    '\nپایه هر عدد: ' + unit +
     '\nوضعیت شمول مالیات تأیید نشده است.', [
     [key('🔙 مشخصات', 'product:' + p.product_id)],
   ]);
@@ -318,11 +330,11 @@ export function planQuote(p, plan, data) {
   if (!compatiblePlans(p, data).some(x => x.plan_id === plan.plan_id))
     return card('این طرح برای محصول انتخابی منتشر نشده است.');
   const price = p.box_base_price
-    ? discountedToman(p.box_base_price.amountIRR, plan.discount_percent) : null;
+    ? discountedToman(p.box_base_price.amountToman, plan.discount_percent) : null;
   const lines = ['💰 ' + p.product_name, '🏷 ' + plan.plan_name +
     ' (' + fmt(plan.discount_percent) + '٪)'];
   if (p.box_base_price && price) {
-    lines.push('پایه هر بسته: ' + toman(p.box_base_price.amountIRR));
+    lines.push('پایه هر بسته: ' + sheetToman(p.box_base_price.amountToman));
     lines.push('پس از کسر تخفیف: ' + price);
   } else lines.push('قیمت پایه تأییدشده برای محاسبه موجود نیست.');
   lines.push('⚠️ فقط محاسبه بر مبنای قیمت پایه است؛ قیمت نهایی با مالیات و گردکردن هنوز قطعی نیست.');
@@ -340,15 +352,15 @@ export function finalPriceList(p, data, page = 1) {
   ]);
   if (!plans.length) return card('💰 ' + p.product_name +
     '\nطرح تخفیف عمومی مرتبط با این محصول ثبت نشده است.\nپایه هر بسته: ' +
-    toman(p.box_base_price.amountIRR), [
+    sheetToman(p.box_base_price.amountToman), [
     [key('🔙 مشخصات محصول', 'product:' + p.product_id)],
   ]);
   const v = pageOf(plans, page);
   if (!v) return card('این صفحه در دسترس نیست.');
   const lines = ['💰 ' + p.product_name, 'پایه هر بسته: ' +
-    toman(p.box_base_price.amountIRR), 'قیمت هر بسته پس از تخفیف:'];
+    sheetToman(p.box_base_price.amountToman), 'قیمت هر بسته پس از تخفیف:'];
   for (const plan of v.items) {
-    const price = discountedToman(p.box_base_price.amountIRR, plan.discount_percent);
+    const price = discountedToman(p.box_base_price.amountToman, plan.discount_percent);
     if (price) lines.push('• ' + plan.plan_name + ' (' +
       fmt(plan.discount_percent) + '٪): ' + price);
   }

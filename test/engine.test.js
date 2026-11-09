@@ -144,20 +144,20 @@ test('base_price_per_box overrides the older base price and discounts the exact 
     base_price_per_box:'654107',box_unit_base_price:'109017.83333333333',
     final_price_approved_for_public:'TRUE',base_price_basis:'PACK_WITH_TAX'});
   const d=publicData(raw,today);
-  assert.equal(d.products.find(x=>x.product_id==='ORG').base_price_irr,'654107');
+  assert.equal(d.products.find(x=>x.product_id==='ORG').base_price_irr,'6541070');
   const offer=bestPlan(cart(['ORG',1]),d,{
     PRICE_POLICY_APPROVED:'true',ROUNDING_RULE:'HALF_UP_IRR'
   });
   assert.equal(offer.winner.plan.plan_id,'D001');
-  assert.equal(offer.winner.money.itemPrices[0].finalPricePerPackIRR,'588696');
-  assert.equal(offer.winner.money.savingIRR,'65411');
+  assert.equal(offer.winner.money.itemPrices[0].finalPricePerPackIRR,'5886963');
+  assert.equal(offer.winner.money.savingIRR,'654107');
 });
 test('integer rounded box unit is tolerated, but cannot replace the exact box amount',()=>{
   const raw=seed();
   const org=raw.Products.find(x=>x.product_id==='ORG');
   Object.assign(org,{units_per_pack:'6',base_price_irr:'',
     base_price_per_box:'883929',box_unit_base_price:'147322',base_price_basis:'PACK_WITH_TAX'});
-  assert.equal(publicData(raw,today).products.find(x=>x.product_id==='ORG').base_price_irr,'883929');
+  assert.equal(publicData(raw,today).products.find(x=>x.product_id==='ORG').base_price_irr,'8839290');
   org.box_unit_base_price='147700';
   assert.equal(publicData(raw,today).products.find(x=>x.product_id==='ORG').base_price_irr,null);
 });
@@ -185,7 +185,7 @@ test('source-like 24-pack fractional unit formula agrees with integer box base',
   Object.assign(p,{units_per_pack:'24',base_price_per_box:'1178573',
     box_unit_base_price:'49107.208333333336',base_price_irr:'',
     base_price_basis:'PACK_WITH_TAX'});
-  assert.equal(publicData(raw,today).products.find(x=>x.product_id==='ORG').base_price_irr,'1178573');
+  assert.equal(publicData(raw,today).products.find(x=>x.product_id==='ORG').base_price_irr,'11785730');
 });
 
 function allPlanSeed(){
@@ -304,7 +304,7 @@ test('base box price independently approved is public, without claiming tax veri
     units_per_pack:'6',base_box_price_approved_for_public:'TRUE'});
   let d=publicData(raw,today);
   assert.deepEqual(d.products.find(x=>x.product_id==='ORG').box_base_price,
-    {amountIRR:'654107',unitRawIRR:'109017.83333333333',basis:'PACK',taxVerified:false});
+    {amountToman:'654107',unitRawToman:'109017.83333333333',basis:'PACK',taxVerified:false});
   assert.equal(d.products.find(x=>x.product_id==='ORG').final_price_approved_for_public,true);
   p.final_price_approved_for_public='FALSE';
   d=publicData(raw,today);

@@ -6,7 +6,7 @@ const product = (id, name = 'نوشابه اورجینال محصول ' + id) =>
   product_id: id, product_name: name, units_per_pack: '6',
   variants: ['کوکاکولا','فانتا پرتقالی'],
   consumer_price: {amountIRR:'100000',basis:'UNIT'},
-  box_base_price: {amountIRR:'654107',unitRawIRR:'109017.83333333333'},
+  box_base_price: {amountToman:'654107',unitRawToman:'109017.83333333333'},
   group_id:'ORIGINAL_SODA',group_verified:'TRUE',
 });
 const p = Array.from({length:6}, (_,n) => product('P'+String(n+3).padStart(3,'0')));
@@ -60,7 +60,7 @@ test('final-price button and plan route are at SKU level, not flavor level',asyn
   assert.ok(!calls(detail).includes('final:P003:1'));
   assert.ok(calls(detail).includes('product-plans:P003:1'));
   const quote=await replyTo(callback('final:P003:1'));
-  assert.match(quote.text,/۵۸٬۸۶۹٫۶۳ تومان/);
+  assert.match(quote.text,/۵۸۸٬۶۹۶٫۳ تومان/);
   assert.doesNotMatch(quote.text,/ریال/);
   const plan=await replyTo(callback('plan:D001'));
   assert.ok(calls(plan).includes('plan-items:D001:1'));
