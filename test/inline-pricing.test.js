@@ -42,9 +42,9 @@ test('six product sections stay in order; single-pack quote includes per-unit av
   assert.deepEqual([...offsets].sort((a,b) => a-b), offsets);
   assert.doesNotMatch(view.text, /[۰-۹]٫[۰-۹]+ تومان|قیمت هر بسته/);
   assert.doesNotMatch(view.text, /پایه هر بسته|قیمت هر بسته|حاشیه سود|ریال|⚠️/);
-  assert.ok(actions(view).includes('product-plans:P003:1'));
+  assert.ok(actions(view).includes('final:P003:1'));
   assert.ok(!actions(view).includes('variants:P003:1'));
-  assert.ok(!actions(view).some(x => /^(final|price|prices|add):/.test(x)));
+  assert.ok(actions(view).includes('cart-add:P003'));
 });
 
 test('no single-pack quote appears when quantity, approval, or policy is missing', () => {
@@ -55,7 +55,7 @@ test('no single-pack quote appears when quantity, approval, or policy is missing
   const view = productDetail(product, minTwo, env);
   assert.doesNotMatch(view.text, /۹۸٬۱۱۷|قیمت تمام‌شده هر بطری|حاشیه سود/);
   assert.match(view.text, /طرح تخفیفی دارد؛ قیمت هر بطری قابل اعلام نیست/);
-  assert.ok(actions(view).includes('product-plans:P003:1'));
+  assert.ok(actions(view).includes('final:P003:1'));
   assert.equal(approvedSinglePackOffer(product, data, {}), null);
   assert.equal(approvedSinglePackOffer(product, data, {
     PRICE_POLICY_APPROVED:'true', ROUNDING_RULE:'UNAPPROVED',
