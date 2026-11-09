@@ -6,7 +6,7 @@ import { publicData } from './engine.js';
 // contains a Product_Variants tab. Referencing a deleted tab makes the entire
 // Sheets values:batchGet request fail, including the published product list.
 const TABS = {
-  Products:'A1:U1000', Discount_Plans:'A1:L201', Product_Plans:'A1:E1001',
+  Products:'A1:U1000', Discount_Plans:'A1:M201', Product_Plans:'A1:E1001',
   Plan_Requirements:'A1:I501', Plan_Discount_Targets:'A1:E501',
 };
 let tokenCache = null;
