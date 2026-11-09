@@ -138,10 +138,10 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
         await writeCart(env,user.id,cart);
         return display();
       }
-      if ((m=match(content,'^cart-(plus|minus):(\\d{1,2})$'))) {
+      if ((m=match(content,'^cart-(plus|minus):(\\d{1,2})(?::(5|10))?$'))) {
         const i=Number(m[2]), item=cart[i];
         if(!item)return display();
-        cart=changeQuantity(cart,item.product_id,item.variant,m[1]==='plus'?1:-1);
+        cart=changeQuantity(cart,item.product_id,item.variant,m[1]==='plus'?Number(m[3]||1):-1);
         await writeCart(env,user.id,cart);
         return display();
       }

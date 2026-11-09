@@ -30,12 +30,12 @@ export async function writeCart(env, userId, cart) {
   ).bind(dbKey(userId), JSON.stringify(safe)).run();
 }
 export function changeQuantity(cart, productId, variant, change) {
-  if (![1,-1].includes(change)) return cart;
+  if (!Number.isSafeInteger(change) || ![-10,-5,-1,1,5,10].includes(change)) return cart;
   const result = cart.map(x=>({...x}));
   const i=result.findIndex(x=>x.product_id===productId && x.variant===variant);
   if (i<0) {
     if (change<0 || result.length>=50) return result;
-    result.push({product_id:productId,variant,qty:1});
+    result.push({product_id:productId,variant,qty:change});
   } else {
     result[i].qty+=change;
     if (result[i].qty<=0) result.splice(i,1);

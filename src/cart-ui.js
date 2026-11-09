@@ -37,7 +37,8 @@ export function cartSummary(cart,data,env={}) {
     total+=item.qty;
     lines.push(displayLine(item,p));
     if(i<15)rows.push([
-      btn('➕','cart-plus:'+i),btn('➖','cart-minus:'+i)
+      btn('➕۱','cart-plus:'+i),btn('➕۵','cart-plus:'+i+':5'),
+      btn('➕۱۰','cart-plus:'+i+':10'),btn('➖۱','cart-minus:'+i)
     ]);
   }
   lines.push('\n📦 جمع: '+fmt(total)+' بسته');
@@ -63,7 +64,15 @@ export function cartSummary(cart,data,env={}) {
       lines.push('قیمت‌های بالا فقط برای اقلام مشمول و پس از احراز شرایط همین طرح هستند.');
     }
   } else lines.push('\nهنوز ترکیب واجد شرایط طرحی کامل نشده است.');
-  const gaps=suggestions(cart,data).slice(0,3);
+  // A cart with soda should not recommend an unrelated standalone milk deal.
+  const gaps=suggestions(cart,data).filter(s=>{
+    const reqs=data.requirements.filter(r=>r.plan_id===s.plan.plan_id);
+    return cart.some(x=>{
+      const p=data.products.find(p=>p.product_id===x.product_id);
+      return p && data.links.some(l=>l.plan_id===s.plan.plan_id&&l.product_id===p.product_id) &&
+        reqs.some(r=>inGroup(p,r.group_id));
+    });
+  }).slice(0,3);
   if(gaps.length){
     lines.push('\n💡 برای رسیدن به طرح‌های دیگر:');
     for(const [i,s] of gaps.entries()) {
