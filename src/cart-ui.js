@@ -51,7 +51,7 @@ export function cartSummary(cart,data,env={}) {
       lines.push('\n✅ طرح با بیشترین صرفه‌جویی ریالی برای اقلام مشمول: '+winner.plan.plan_name);
       lines.push('صرفه‌جویی اقلام مشمول: '+toman(winner.money.savingIRR));
     } else lines.push('📌 انتخاب بهترین طرح ریالی تا تأیید قیمت نهایی و قوانین محاسبه ممکن نیست.');
-    const quoted=valid[0];
+    const quoted=winner || [...valid].sort((a,b)=>Number(b.plan.discount_percent)-Number(a.plan.discount_percent))[0];
     const unique=[...new Map(quoted.items.map(x=>[x.product_id,x.product])).values()];
     if(unique.length) {
       lines.push('\n💰 قیمت مشروط هر بطری با «'+quoted.plan.plan_name+'»:');
