@@ -2,8 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {publicData,eligiblePlans,inGroup} from '../src/engine.js';
 import {planCategories,planGroupList,planRateList,planList} from '../src/bot-ui.js';
-import {cartSummary,chooseFlavor} from '../src/cart-ui.js';
-import {changeQuantity} from '../src/cart-storage.js';
 
 const date='2026-11-09';
 const definitions=[
@@ -112,30 +110,4 @@ test('20% milk and doogh accepts each alone, or a mixed basket, after 3 packs',(
  assert.ok(has(d,[['D',3]],'D008'));
  assert.ok(has(d,[['M',2],['D',1]],'D008'));
  assert.ok(!has(d,[['M',1],['D',1]],'D008'));
-});
-test('cart preserves distinct approved model/flavor and previews only whole-toman per-bottle prices',()=>{
- const d=fixture();
- const original=d.products.find(x=>x.product_id==='O');
- original.variants=['کوکاکولا','فانتا پرتقالی'];
- const choose=chooseFlavor(original);
- assert.ok(callbacks(choose).includes('cart-v:O:1'));
- let cart=changeQuantity([], 'O','کوکاکولا',1);
- cart=changeQuantity(cart,'O','فانتا پرتقالی',1);
- cart=changeQuantity(cart,'C','',1);
- cart=changeQuantity(cart,'C','',1);
- assert.equal(cart.length,3);
- assert.equal(cart.reduce((x,y)=>x+y.qty,0),4);
- const summary=cartSummary(cart,d,{});
- assert.match(summary.text,/کوکاکولا/);
- assert.match(summary.text,/فانتا پرتقالی/);
- assert.match(summary.text,/هر بطری/);
- assert.doesNotMatch(summary.text,/قیمت هر بسته|ریال(?!ی)|مبلغ قطعی فاکتور|✅ طرح با بیشترین صرفه‌جویی ریالی/);
- assert.equal(callbacks(summary).includes('cart-clear-confirm'),true);
- assert.ok(callbacks(summary).includes('cart-plus:0:10'));
- assert.ok(!summary.text.includes('۳ بسته شیر و دوغ'));
- const bulk=changeQuantity([], 'O','کوکاکولا',10);
- assert.equal(bulk[0].qty,10);
- assert.equal(changeQuantity(bulk, 'O','کوکاکولا',-5)[0].qty,5);
- assert.equal(changeQuantity(bulk, 'O','کوکاکولا',20)[0].qty,10);
- assert.equal(inGroup(d.products.find(x=>x.product_id==='W'),'NON_SODA_NON_DASANI'),false);
 });

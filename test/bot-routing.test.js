@@ -59,7 +59,7 @@ test('final-price button and plan route are at SKU level, not flavor level',asyn
   const detail=await replyTo(callback('product:P003'));
   assert.match(detail.text,/تومان/);
   assert.ok(calls(detail).includes('final:P003:1'));
-  assert.ok(calls(detail).includes('cart-add:P003'));
+  assert.ok(!calls(detail).some(x=>x.startsWith('cart')));
   const quote=await replyTo(callback('final:P003:1'));
   assert.match(quote.text,/۹۸٬۱۱۷ تومان/);
   assert.doesNotMatch(quote.text,/ریال/);
@@ -68,28 +68,16 @@ test('final-price button and plan route are at SKU level, not flavor level',asyn
   const planItems=await replyTo(callback('plan-items:D001:1'));
   assert.ok(calls(planItems).includes('product:P003'));
 });
-test('customer can choose approved flavors and persist distinct variants in runtime D1',async()=>{
-  const store = new Map();
-  const env={CART_DB:{
-    prepare(){return {bind(key,value){return {
-      async first(){return {value:store.get(key) ?? '[]'};},
-      async run(){store.set(key,value);return {success:true};},
-    };}};},
-  }};
-  const chooser=await replyTo(callback('cart-add:P003'),env);
-  assert.ok(calls(chooser).includes('cart-v:P003:1'));
-  const first=await replyTo(callback('cart-v:P003:1'),env);
-  assert.match(first.text,/کوکاکولا/);
-  const second=await replyTo(callback('cart-v:P003:2'),env);
-  assert.match(second.text,/فانتا پرتقالی/);
-  const summary=await replyTo(callback('cart'),env);
-  assert.match(summary.text,/۲ بسته/);
-  const reduced=await replyTo(callback('cart-minus:0'),env);
-  assert.match(reduced.text,/۱ بسته/);
-  assert.ok(calls(reduced).includes('cart-clear-confirm'));
-  const boosted=await replyTo(callback('cart-plus:0:10'),env);
-  assert.match(boosted.text,/۱۱ بسته/);
-  assert.ok(calls(boosted).includes('cart-plus:0:10'));
+test('legacy cart actions return the menu without accessing runtime storage',async()=>{
+  const env={CART_DB:{prepare(){throw Error('cart storage must not be accessed');}}};
+  for (const old of ['cart','/cart','🛒 سبد خرید','cart-add:P003',
+      'cart-v:P003:1','cart-clear','cart-plus:0:10','cart-gap:D001:0:1',
+      '/add P003 1','/remove P003 1','/clear','/suggest','suggest:D001']) {
+    const view=await replyTo(callback(old),env);
+    assert.match(view.text,/منوی فروش خوشگوار/);
+    assert.ok(!calls(view).some(x=>x.startsWith('cart')));
+  }
+  assert.match((await replyTo(message('🛒 سبد خرید'),env)).text,/منوی فروش خوشگوار/);
 });
 test('forged callers and unapproved products remain inaccessible',async()=>{
   const forged=callback('quote:P003:D001');

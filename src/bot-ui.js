@@ -2,7 +2,7 @@ import { planAppliesToProduct } from './plan-visibility.js';
 import { quantities, qualifies, monetaryEvaluation } from './engine.js';
 import { CONSULTATION_BUTTON_TEXT, CONSULTATION_CHAT_URL } from './consultation.js';
 
-// Inline navigation; shopping cart is server-side and never exposes unpublished data.
+// Inline navigation exposes only published catalog items and approved sale plans.
 export const PAGE_SIZE = 5;
 export const fmt = value => Number(value).toLocaleString('fa-IR');
 const digits = '۰۱۲۳۴۵۶۷۸۹';
@@ -33,7 +33,7 @@ export function card(text, rows = [], withHome = true) {
 export function mainMenu() {
   return card('🥤 منوی فروش خوشگوار\nبخش موردنظر را انتخاب کنید:', [
     [key('📦 محصولات', 'products:1')],
-    [key('🎁 طرح‌های فروش', 'plans:1'), key('🛒 سبد خرید', 'cart')],
+    [key('🎁 طرح‌های فروش', 'plans:1')],
     [key('🔎 جستجو', 'search')],
     [{ text: CONSULTATION_BUTTON_TEXT, url: CONSULTATION_CHAT_URL }],
   ], false);
@@ -253,7 +253,6 @@ export function productDetail(p, data, env = {}) {
   const back = family ? 'family:' + family.id + ':' +
     (Math.floor(familyIndex / PAGE_SIZE) + 1) : 'products:1';
   return card(lines.join('\n'), [
-    [key('➕ افزودن به سبد خرید', 'cart-add:' + p.product_id)],
     ...(plans.length ? [[key('🎁 تخفیف‌ها و قیمت هر بطری', 'final:' + p.product_id + ':1')]] : []),
     [key('🔙 بازگشت', back)],
   ]);
@@ -353,9 +352,8 @@ export function planDetail(plan, data) {
   return card('🎁 ' + plan.plan_name +
     '\nتخفیف: ' + fmt(plan.discount_percent) + '٪' +
     '\n\nشرایط: ' + String(plan.conditions || 'طبق شرایط طرح').slice(0,850) +
-    '\n\nانتخاب مدل‌ها و محاسبه قیمت هر بطری در محصولات و سبد خرید انجام می‌شود.', [
+    '\n\nبرای مشاهده مدل‌ها و قیمت محاسباتی هر بطری به بخش محصولات مراجعه کنید.', [
     [key('📦 محصولات مشمول', 'plan-items:' + plan.plan_id + ':1')],
-    [key('🛒 مشاهده سبد خرید', 'cart')],
     [key('🔙 طرح‌ها', back)],
   ]);
 }

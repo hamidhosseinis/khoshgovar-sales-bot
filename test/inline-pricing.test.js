@@ -44,7 +44,7 @@ test('six product sections stay in order; single-pack quote includes per-unit av
   assert.doesNotMatch(view.text, /پایه هر بسته|قیمت هر بسته|حاشیه سود|ریال|⚠️/);
   assert.ok(actions(view).includes('final:P003:1'));
   assert.ok(!actions(view).includes('variants:P003:1'));
-  assert.ok(actions(view).includes('cart-add:P003'));
+  assert.ok(!actions(view).some(x=>x.startsWith('cart')));
 });
 
 test('no single-pack quote appears when quantity, approval, or policy is missing', () => {
