@@ -173,6 +173,8 @@ export function publicData(rows, today) {
   const plans = (rows.Discount_Plans || []).filter(p => approvedPlan(p, today)).map(p => ({
     plan_id: p.plan_id, plan_name: p.plan_name, discount_percent: p.discount_percent,
     conditions: p.conditions, quantity_rule: p.quantity_rule, max_multiplier: p.max_multiplier,
+    plan_category_fa: typeof p.plan_category_fa === 'string' && p.plan_category_fa.length <= 60
+      ? p.plan_category_fa.trim() : '',
   }));
   const ids = new Set(plans.map(p => p.plan_id));
   const productIds = new Set(products.map(p => p.product_id));
