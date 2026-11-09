@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { publicData } from '../src/engine.js';
-import { productDetail, planQuote, sheetToman } from '../src/bot-ui.js';
+import { productDetail, planQuote, sheetToman, unitDetail } from '../src/bot-ui.js';
 
 const row = {
   product_id: 'P003', product_name: 'نوشابه اورجینال 2.5 لیتری',
@@ -20,8 +20,9 @@ test('canonical box and unit prices display unchanged in toman, with no divide-b
     basis: 'PACK', taxVerified: false,
   });
   const detail = productDetail(p, data);
-  assert.match(detail.text, /پایه هر بسته: ۸۸۳٬۹۲۹ تومان/);
-  assert.match(detail.text, /پایه هر عدد: ۱۴۷٬۳۲۱٫۵ تومان/);
+  assert.doesNotMatch(detail.text, /پایه هر بسته/);
+  assert.match(unitDetail(p).text, /پایه هر بسته: ۸۸۳٬۹۲۹ تومان/);
+  assert.match(detail.text, /قیمت پایه هر عدد: ۱۴۷٬۳۲۱٫۵ تومان/);
   assert.doesNotMatch(detail.text, /۸۸٬۳۹۲٫۹ تومان/);
   assert.equal(sheetToman('0.25'), '۰٫۲۵ تومان');
   assert.equal(sheetToman('0.1.2'), null);
