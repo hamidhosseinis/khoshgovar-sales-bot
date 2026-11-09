@@ -81,6 +81,15 @@ export function approvedSinglePackOffer(product, data, env) {
   if (entries.length !== 1) return null;
   let best = null;
   for (const plan of compatiblePlans(product, data)) {
+    // Only D001 is approved in the current business-rule catalogue for a
+    // one-pack tier (original soda, 1–10 packs). Protect against a modified
+    // Sheet requirement making a multi-pack plan look like a single-pack deal.
+    if (plan.plan_id !== 'D001') continue;
+    const requirements = data.requirements.filter(r => r.plan_id === plan.plan_id);
+    if (requirements.length !== 1 || requirements[0].group_id !== 'ORIGINAL_SODA' ||
+        requirements[0].quantity_rule !== 'RANGE' ||
+        Number(requirements[0].min_packs) !== 1 ||
+        Number(requirements[0].max_packs) !== 10) continue;
     if (!qualifies(entries, plan, data)) continue;
     const result = monetaryEvaluation({plan, items: entries}, env);
     const priceIRR = result?.itemPrices?.[0]?.finalPricePerPackIRR;
