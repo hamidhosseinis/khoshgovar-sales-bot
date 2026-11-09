@@ -64,7 +64,7 @@ test('start removes the old reply keyboard and shows only inline buttons', async
   assert.ok(calls[1].data.reply_markup.inline_keyboard.flat()
     .some(b => b.text === '💬 مشاوره' && b.url === 'https://t.me/Hamidhosseinis'));
   assert.ok(calls[1].data.reply_markup.inline_keyboard.flat()
-    .some(b => b.callback_data === 'cart'));
+    .every(b => b.callback_data !== 'cart'));
 });
 test('start edits the same message to inline when Telegram supplies message ID',async()=>{
   const calls=[];
