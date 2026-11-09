@@ -67,7 +67,7 @@ test('no single-pack quote appears when quantity, approval, or policy is missing
 test('missing retail price and invalid pack quantity never fabricate monetary details', () => {
   const hiddenRetail = {...product, consumer_price:null};
   const noRetail = productDetail(hiddenRetail, {...data,products:[hiddenRetail]}, env);
-  assert.match(noRetail.text, /قیمت مصرف‌کننده: منتشر نشده/);
+  assert.match(noRetail.text, /قیمت مصرف‌کننده هر بطری: منتشر نشده/);
   assert.match(noRetail.text, /قیمت تمام‌شده هر بطری با تخفیف \(«طرح یک»\): ۹۸٬۱۱۶٫۰۵ تومان/);
   const packRetail = {...product, consumer_price:{amountIRR:'5500000',basis:'PACK'}};
   assert.match(productDetail(packRetail, {...data,products:[packRetail]}, env).text,
