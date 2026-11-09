@@ -64,7 +64,7 @@ export const toman = amountIRR => renderToman(amountIRR);
 // formula precision. Only add thousands separators and Persian digits.
 export function sheetToman(value) {
   const raw = String(value ?? '').trim();
-  if (!/^(?:[1-9]\d*|0\.\d*[1-9]\d*)(?:\.\d+)?$/.test(raw)) return null;
+  if (!/^(?:[1-9]\d*(?:\.\d+)?|0\.\d*[1-9]\d*)$/.test(raw)) return null;
   const [integer, fraction] = raw.split('.');
   return fa(BigInt(integer).toLocaleString('en-US').replaceAll(',', '٬')) +
     (fraction ? '٫' + fa(fraction) : '') + ' تومان';
