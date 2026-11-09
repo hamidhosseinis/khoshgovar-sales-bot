@@ -87,6 +87,9 @@ test('customer can choose approved flavors and persist distinct variants in runt
   const reduced=await replyTo(callback('cart-minus:0'),env);
   assert.match(reduced.text,/۱ بسته/);
   assert.ok(calls(reduced).includes('cart-clear-confirm'));
+  const boosted=await replyTo(callback('cart-plus:0:10'),env);
+  assert.match(boosted.text,/۱۱ بسته/);
+  assert.ok(calls(boosted).includes('cart-plus:0:10'));
 });
 test('forged callers and unapproved products remain inaccessible',async()=>{
   const forged=callback('quote:P003:D001');
