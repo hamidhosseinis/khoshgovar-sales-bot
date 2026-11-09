@@ -78,7 +78,7 @@ test('sales plan menu groups by percent; 15% shows one button and three distinct
  assert.ok(callbacks(first).some(x=>x.startsWith('plan-group:')));
  const group=groups.find(c=>c.name==='نوشابه اورجینال و کانادا');
  const choices=planGroupList(d,group.index);
- assert.ok(callbacks(choices).includes('plan-rate:'+group.index+':15));
+ assert.ok(callbacks(choices).includes('plan-rate:'+group.index+':15'));
  assert.match(choices.text,/درصد تخفیف/);
  const methods=planRateList(d,group.index,15);
  assert.ok(callbacks(methods).includes('plan:D003'));
