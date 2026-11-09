@@ -86,7 +86,7 @@ test('display-only ceil rules keep all prices in whole toman per bottle', () => 
   assert.equal(sheetToman('883929'), '۸۸۳٬۹۲۹ تومان');
   assert.equal(sheetToman('147321.5'), '۱۴۷٬۳۲۲ تومان');
   assert.equal(sheetToman('109017.83333333333'), '۱۰۹٬۰۱۸ تومان');
-  assert.match(unitDetail(products[0]).text, /پایه هر بطری: ۱۰۹٬۰۱۷٫۸۳۳۳۳۳۳۳۳۳۳ تومان/);
+  assert.match(unitDetail(products[0]).text, /پایه هر بطری: ۱۰۹٬۰۱۸ تومان/);
   assert.equal(discountedToman('bad', 10), null);
   assert.equal(toman('11'), '۲ تومان');
   assert.equal(toman('10'), '۱ تومان');
