@@ -118,7 +118,7 @@ export function approvedSinglePackOffer(product, data, env) {
     // Sheet requirement making a multi-pack plan look like a single-pack deal.
     if (plan.plan_id !== 'D001') continue;
     const requirements = data.requirements.filter(r => r.plan_id === plan.plan_id);
-    if (requirements.length !== 1 || requirements[0].group_id !== 'ORIGINAL_CANADA_COMBINED' ||
+    if (requirements.length !== 1 || !['ORIGINAL_CANADA_COMBINED','ORIGINAL_SODA'].includes(requirements[0].group_id) ||
         requirements[0].quantity_rule !== 'RANGE' ||
         Number(requirements[0].min_packs) !== 1 ||
         Number(requirements[0].max_packs) !== 10) continue;
