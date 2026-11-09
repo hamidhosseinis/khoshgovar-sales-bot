@@ -114,7 +114,7 @@ export function approvedSinglePackOffer(product, data, env) {
 // approximate; do not silently invent a per-unit rounding policy.
 function averageUnitToman(priceIRR, unitsPerPack) {
   const count = String(unitsPerPack ?? '');
-  if (!/^[1-9]\\d*$/.test(count) || BigInt(count) > 10000n) return null;
+  if (!/^[1-9]\d*$/.test(count) || BigInt(count) > 10000n) return null;
   const divisor = BigInt(count) * 10n; // IRR per pack -> toman per unit
   const scaled = BigInt(priceIRR) * 10000n;
   const whole = scaled / divisor, remainder = scaled % divisor;
@@ -211,7 +211,7 @@ export function productDetail(p, data, env = {}) {
   // prices, plan rules, or raw flavor fields from the Sheet.
   const lines = ['🥤 ' + p.product_name];
   lines.push('📦 تعداد در بسته: ' +
-    (/^[1-9]\\d*$/.test(String(p.units_per_pack ?? ''))
+    (/^[1-9]\d*$/.test(String(p.units_per_pack ?? ''))
       ? fmt(p.units_per_pack) + ' عدد' : 'نامشخص'));
   lines.push(consumerText(p) || '💳 قیمت مصرف‌کننده: منتشر نشده');
   lines.push(unitBaseText(p) || '🏷 قیمت پایه هر عدد: منتشر نشده');
@@ -237,7 +237,7 @@ export function productDetail(p, data, env = {}) {
   const familyIndex = family?.items.findIndex(x => x.product_id === p.product_id) ?? -1;
   const back = family ? 'family:' + family.id + ':' +
     (Math.floor(familyIndex / PAGE_SIZE) + 1) : 'products:1';
-  return card(lines.join('\\n'), [
+  return card(lines.join('\n'), [
     ...(plans.length ? [[key('🏷 طرح‌های تخفیف', 'product-plans:' + p.product_id + ':1')]] : []),
     [key('🔙 بازگشت', back)],
   ]);
