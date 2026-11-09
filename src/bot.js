@@ -1,7 +1,7 @@
 import { sheetCatalog } from './sheets.js';
 import {
   card, welcome, mainMenu, mergePublicCatalog, productList, productFamilyList,
-  productDetail, unitDetail, variantsList, planList, planDetail,
+  productDetail, unitDetail, variantsList, planList, planGroupList, planDetail,
   productPlanList, planProducts, planQuote, finalPriceList, searchPrompt, searchResults,
 } from './bot-ui.js';
 
@@ -76,6 +76,8 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
   if (['🏷 طرح‌های فروش', '🏷 طرح‌های عمومی', '/plans'].includes(content)) return planList(data);
   if ((m = match(content, '^plans:([1-9]\\d{0,2})$')))
     return planList(data, page(m[1]));
+  if ((m = match(content, '^plan-group:([1-9]\\d{0,2}):([1-9]\\d{0,2})$')))
+    return planGroupList(data, page(m[1]), page(m[2]));
   if ((m = match(content, '^plan:(' + idPattern + ')$')) ||
       (m = match(content, '^/plan\\s+(' + idPattern + ')$'))) {
     const plan = findPlan(m[1]);
