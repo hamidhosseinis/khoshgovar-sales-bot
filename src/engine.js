@@ -211,23 +211,21 @@ export function qualifies(entries, plan, data) {
   const requirements = data.requirements.filter(r => r.plan_id === plan.plan_id);
   const eligibleEntries = related(entries, plan, data);
   if (!requirements.length || !eligibleEntries.length) return false;
-  // D012 permits one complementary pack from a group that overlaps ORIGINAL_SODA.
-  // Check disjoint physical quantities, not independent counts of overlapping groups.
-  // This protects against falsely treating the same three original packs as 3 + 1.
+  // D012: 3 verified original/Canada soda packs + 1 distinct eligible
+  // variety pack. Exclusive groups prevent counting one physical pack twice.
   if (plan.plan_id === 'D012') {
-    const primary = requirements.find(r => r.group_id === 'ORIGINAL_SODA');
-    const extra = requirements.find(r => r.group_id === 'VARIETY_NON_WATER_NON_MILK');
+    const primary = requirements.find(r => r.group_id === 'ORIGINAL_CANADA_COMBINED');
+    const extra = requirements.find(r => r.group_id === 'DIVERSITY_EXCL_CORE');
     if (requirements.length !== 2 || !primary || !extra ||
         primary.quantity_rule !== 'EXACT_MULTIPLE' ||
         extra.quantity_rule !== 'EXACT_MULTIPLE' ||
         Number(primary.packs_per_step) !== 3 ||
-        Number(extra.packs_per_step) !== 1 || Number(plan.max_multiplier) !== 1) return false;
+        Number(extra.packs_per_step) !== 1 ||
+        Number(plan.max_multiplier) !== 1) return false;
     const total = eligibleEntries.reduce((sum, x) => sum + x.qty, 0);
-    // Four distinct physical packs; at least three must be original soda.
-    // All four must qualify as non-water/non-milk (so one can be assigned to variety).
     return total === 4 &&
-      groupQty(eligibleEntries, 'ORIGINAL_SODA') >= 3 &&
-      groupQty(eligibleEntries, 'VARIETY_NON_WATER_NON_MILK') === 4;
+      groupQty(eligibleEntries, 'ORIGINAL_CANADA_COMBINED') === 3 &&
+      groupQty(eligibleEntries, 'DIVERSITY_EXCL_CORE') === 1;
   }
   let multiplier = null;
   for (const req of requirements) {

@@ -24,7 +24,7 @@ const data = { products, plans: [plan],
 const keys = view => view.reply_markup.inline_keyboard.flat();
 const callbacks = view => keys(view).map(x => x.callback_data).filter(Boolean);
 
-test('only inline navigation remains; cart button and reply keyboard are absent', () => {
+test('inline navigation includes shopping cart but no reply keyboard', () => {
   assert.deepEqual(welcome(), mainMenu());
   const menu = mainMenu();
   assert.ok(menu.reply_markup.inline_keyboard.length);
@@ -34,7 +34,7 @@ test('only inline navigation remains; cart button and reply keyboard are absent'
   assert.ok(!callbacks(menu).includes('prices:1'));
   assert.ok(!keys(menu).some(k => k.text === '💰 قیمت‌ها'));
   assert.ok(keys(menu).some(x => x.url === 'https://t.me/Hamidhosseinis'));
-  assert.ok(!callbacks(menu).includes('cart'));
+  assert.ok(callbacks(menu).includes('cart'));
 });
 test('catalog shows families first, then every published model with per-family pagination', () => {
   assert.equal(PAGE_SIZE, 5);
@@ -50,8 +50,8 @@ test('catalog shows families first, then every published model with per-family p
   assert.match(detail.text, /تعداد در بسته: ۶ عدد/);
   assert.match(detail.text, /قیمت پایه هر بطری: ۱۰۹٬۰۱۸ تومان/);
   assert.doesNotMatch(detail.text, /ریال|۶۵٬۴۱۰٫۷|طعم کوکاکولا/);
-  assert.ok(!callbacks(detail).includes('final:P003:1'));
-  assert.ok(callbacks(detail).includes('product-plans:P003:1'));
+  assert.ok(callbacks(detail).includes('final:P003:1'));
+  assert.ok(callbacks(detail).includes('cart-add:P003'));
   assert.match(detail.text, /طرح تخفیفی دارد؛ قیمت هر بطری قابل اعلام نیست/);
   assert.ok(!callbacks(detail).includes('variants:P003:1'));
   assert.ok(!callbacks(detail).some(x => x.startsWith('add:')));
@@ -74,11 +74,11 @@ test('product detail shows each approved flavor inline instead of hiding them be
   assert.doesNotMatch(productDetail(privateItem, {...catalog, products:[privateItem]}).text,
     /انگور|بلوبری|موهیتو|انبه|شامل طعم/);
 });
-test('plans show terms and linked products without cart navigation', () => {
+test('plans introduce terms and link to catalog and cart', () => {
   assert.ok(callbacks(planList(data)).includes('plan:D001'));
   assert.ok(callbacks(planDetail(plan, data)).includes('plan-items:D001:1'));
-  assert.ok(callbacks(planProducts(plan, data)).includes('quote:P003:D001'));
-  assert.ok(!callbacks(planDetail(plan, data)).includes('cart'));
+  assert.ok(callbacks(planProducts(plan, data)).includes('product:P003'));
+  assert.ok(callbacks(planDetail(plan, data)).includes('cart'));
 });
 test('display-only ceil rules keep all prices in whole toman per bottle', () => {
   assert.equal(discountedToman('654107', 13), '۵۶۹٬۰۷۴ تومان');
@@ -106,7 +106,7 @@ test('display-only ceil rules keep all prices in whole toman per bottle', () => 
   assert.match(quote.text, /قیمت محاسباتی هر بطری پس از تخفیف/);
   assert.match(full.text, /قیمت محاسباتی هر بطری پس از تخفیف/);
   assert.doesNotMatch(full.text, /هر بسته|⚠️|مالیات\/گردکردن/);
-  assert.match(planProducts(plan, data).text, /هر بطری/);
+  assert.match(planProducts(plan, data).text, /انتخاب مدل/);
   for (const view of [productDetail(products[0], data), unitDetail(products[0]), quote, full]) {
     assert.doesNotMatch(view.text, /ریال|قیمت هر بسته|پایه هر بسته|[۰-۹]٫[۰-۹]+ تومان/);
   }
@@ -142,7 +142,7 @@ test('back and home share a compact inline row on detail screens', () => {
     .map(button => button.callback_data), ['plans:1', 'menu']);
   const menu = mainMenu();
   assert.deepEqual(callbacks(menu).slice(0, 4),
-    ['products:1', 'plans:1', 'search']);
+    ['products:1', 'plans:1', 'cart', 'search']);
 });
 
 test('canonical plan categories drive compact public plan navigation', () => {

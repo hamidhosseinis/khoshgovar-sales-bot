@@ -58,23 +58,35 @@ test('consolidated nostalgic shows approved flavors inline; legacy flavor route 
 test('final-price button and plan route are at SKU level, not flavor level',async()=>{
   const detail=await replyTo(callback('product:P003'));
   assert.match(detail.text,/تومان/);
-  assert.ok(!calls(detail).includes('final:P003:1'));
-  assert.ok(calls(detail).includes('product-plans:P003:1'));
+  assert.ok(calls(detail).includes('final:P003:1'));
+  assert.ok(calls(detail).includes('cart-add:P003'));
   const quote=await replyTo(callback('final:P003:1'));
   assert.match(quote.text,/۹۸٬۱۱۷ تومان/);
   assert.doesNotMatch(quote.text,/ریال/);
   const plan=await replyTo(callback('plan:D001'));
   assert.ok(calls(plan).includes('plan-items:D001:1'));
   const planItems=await replyTo(callback('plan-items:D001:1'));
-  assert.ok(calls(planItems).includes('quote:P003:D001'));
+  assert.ok(calls(planItems).includes('product:P003'));
 });
-test('legacy cart operations no longer access D1',async()=>{
-  const env={CART_DB:{prepare(){throw new Error('cart called');}}};
-  for (const cmd of ['cart','add:P003:10','cart:clear','/cart','/suggest']) {
-    const view=await replyTo(callback(cmd),env);
-    assert.match(view.text,/سبد خرید فعلاً از بات حذف شده/);
-  }
-  assert.ok(!calls(await replyTo(message('/start'))).includes('cart'));
+test('customer can choose approved flavors and persist distinct variants in runtime D1',async()=>{
+  const store = new Map();
+  const env={CART_DB:{
+    prepare(){return {bind(key,value){return {
+      async first(){return {value:store.get(key) ?? '[]'};},
+      async run(){store.set(key,value);return {success:true};},
+    };}};},
+  }};
+  const chooser=await replyTo(callback('cart-add:P003'),env);
+  assert.ok(calls(chooser).includes('cart-v:P003:1'));
+  const first=await replyTo(callback('cart-v:P003:1'),env);
+  assert.match(first.text,/کوکاکولا/);
+  const second=await replyTo(callback('cart-v:P003:2'),env);
+  assert.match(second.text,/فانتا پرتقالی/);
+  const summary=await replyTo(callback('cart'),env);
+  assert.match(summary.text,/۲ بسته/);
+  const reduced=await replyTo(callback('cart-minus:0'),env);
+  assert.match(reduced.text,/۱ بسته/);
+  assert.ok(calls(reduced).includes('cart-clear-confirm'));
 });
 test('forged callers and unapproved products remain inaccessible',async()=>{
   const forged=callback('quote:P003:D001');

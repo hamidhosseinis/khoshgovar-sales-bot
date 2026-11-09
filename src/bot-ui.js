@@ -2,7 +2,7 @@ import { planAppliesToProduct } from './plan-visibility.js';
 import { quantities, qualifies, monetaryEvaluation } from './engine.js';
 import { CONSULTATION_BUTTON_TEXT, CONSULTATION_CHAT_URL } from './consultation.js';
 
-// All customer navigation is inline. No reply keyboard or cart UI.
+// Inline navigation; shopping cart is server-side and never exposes unpublished data.
 export const PAGE_SIZE = 5;
 export const fmt = value => Number(value).toLocaleString('fa-IR');
 const digits = '۰۱۲۳۴۵۶۷۸۹';
@@ -33,7 +33,8 @@ export function card(text, rows = [], withHome = true) {
 export function mainMenu() {
   return card('🥤 منوی فروش خوشگوار\nبخش موردنظر را انتخاب کنید:', [
     [key('📦 محصولات', 'products:1')],
-    [key('🏷 طرح‌های فروش', 'plans:1'), key('🔎 جستجو', 'search')],
+    [key('🎁 طرح‌های فروش', 'plans:1'), key('🛒 سبد خرید', 'cart')],
+    [key('🔎 جستجو', 'search')],
     [{ text: CONSULTATION_BUTTON_TEXT, url: CONSULTATION_CHAT_URL }],
   ], false);
 }
@@ -117,7 +118,7 @@ export function approvedSinglePackOffer(product, data, env) {
     // Sheet requirement making a multi-pack plan look like a single-pack deal.
     if (plan.plan_id !== 'D001') continue;
     const requirements = data.requirements.filter(r => r.plan_id === plan.plan_id);
-    if (requirements.length !== 1 || requirements[0].group_id !== 'ORIGINAL_SODA' ||
+    if (requirements.length !== 1 || !['ORIGINAL_CANADA_COMBINED','ORIGINAL_SODA'].includes(requirements[0].group_id) ||
         requirements[0].quantity_rule !== 'RANGE' ||
         Number(requirements[0].min_packs) !== 1 ||
         Number(requirements[0].max_packs) !== 10) continue;
@@ -252,7 +253,8 @@ export function productDetail(p, data, env = {}) {
   const back = family ? 'family:' + family.id + ':' +
     (Math.floor(familyIndex / PAGE_SIZE) + 1) : 'products:1';
   return card(lines.join('\n'), [
-    ...(plans.length ? [[key('🏷 طرح‌های تخفیف', 'product-plans:' + p.product_id + ':1')]] : []),
+    [key('➕ افزودن به سبد خرید', 'cart-add:' + p.product_id)],
+    ...(plans.length ? [[key('🎁 تخفیف‌ها و قیمت هر بطری', 'final:' + p.product_id + ':1')]] : []),
     [key('🔙 بازگشت', back)],
   ]);
 }
@@ -297,7 +299,7 @@ export function planList(data, page = 1) {
     return card('🏷 دسته‌بندی طرح‌های فروش' +
       (v.pages > 1 ? ' | ' + fmt(page) + ' از ' + fmt(v.pages) : '') +
       '\nخانواده طرح موردنظر را انتخاب کنید.', [
-      ...v.items.map(c => [key(c.name + ' (' + fmt(c.plans.length) + ' طرح)',
+      ...v.items.map(c => [key(c.name + ' | ' + [...new Set(c.plans.map(p=>fmt(p.discount_percent) + '٪'))].join('، '),
         'plan-group:' + c.index + ':1')]),
       ...(pageButtons(page, v.pages, 'plans').length ? [pageButtons(page, v.pages, 'plans')] : []),
     ]);
@@ -314,30 +316,46 @@ export function planList(data, page = 1) {
 export function planGroupList(data, categoryIndex, page = 1) {
   const category = planCategories(data)[categoryIndex - 1];
   if (!Number.isSafeInteger(categoryIndex) || !category) return card('این دسته طرح در دسترس نیست.');
-  const v = pageOf(category.plans, page);
+  const rates = [...new Set(category.plans.map(p => Number(p.discount_percent)))].sort((a,b)=>a-b);
+  const v = pageOf(rates, page);
   if (!v) return card('این صفحه در دسترس نیست.');
-  return card('🏷 ' + category.name +
-    (v.pages > 1 ? ' | ' + fmt(page) + ' از ' + fmt(v.pages) : '') +
-    '\nطرح و درصد تخفیف را انتخاب کنید.', [
-    ...v.items.map(p => [key(p.plan_name + ' | ' + fmt(p.discount_percent) + '٪',
-      'plan:' + p.plan_id)]),
+  return card('🎁 ' + category.name + '\nدرصد تخفیف را انتخاب کنید.', [
+    ...v.items.map(rate => {
+      const matching = category.plans.filter(p=>Number(p.discount_percent)===rate);
+      return [key(fmt(rate) + '٪' + (matching.length > 1 ? ' | ' + fmt(matching.length) + ' روش خرید' : ''),
+        matching.length > 1 ? 'plan-rate:' + categoryIndex + ':' + rate : 'plan:' + matching[0].plan_id)];
+    }),
     ...(pageButtons(page, v.pages, 'plan-group:' + categoryIndex).length
       ? [pageButtons(page, v.pages, 'plan-group:' + categoryIndex)] : []),
-    [key('🔙 دسته‌های طرح', 'plans:' + (Math.floor((categoryIndex - 1) / PAGE_SIZE) + 1))],
+    [key('🔙 طرح‌های فروش','plans:' + (Math.floor((categoryIndex-1)/PAGE_SIZE)+1))],
+  ]);
+}
+export function planRateList(data, categoryIndex, rate) {
+  const category = planCategories(data)[categoryIndex-1];
+  if (!category || !Number.isSafeInteger(rate) || rate<0 || rate>100)
+    return card('این روش خرید در دسترس نیست.');
+  const plans = category.plans.filter(p => Number(p.discount_percent) === rate);
+  if (!plans.length) return card('این روش خرید در دسترس نیست.');
+  return card('🎁 ' + fmt(rate) + '٪ | ' + category.name +
+    '\nروش خرید را انتخاب کنید:', [
+    ...plans.map(p => [key(String(p.plan_name).slice(0,55), 'plan:' + p.plan_id)]),
+    [key('🔙 درصدهای تخفیف', 'plan-group:' + categoryIndex + ':1')],
   ]);
 }
 export function planDetail(plan, data) {
   const i = data.plans.findIndex(p => p.plan_id === plan.plan_id);
-  const categories = planCategories(data);
-  const category = categories.find(c => c.plans.some(p => p.plan_id === plan.plan_id));
-  const inCategory = category ? category.plans.findIndex(p => p.plan_id === plan.plan_id) : -1;
-  const back = category ? 'plan-group:' + category.index + ':' +
-    (Math.floor(inCategory / PAGE_SIZE) + 1) : 'plans:' + (Math.floor(i / PAGE_SIZE) + 1);
-  return card('🏷 ' + plan.plan_name +
+  const category = planCategories(data).find(c => c.plans.some(p => p.plan_id === plan.plan_id));
+  const duplicates = category?.plans.filter(p => Number(p.discount_percent) === Number(plan.discount_percent));
+  const back = category ? duplicates.length > 1
+    ? 'plan-rate:' + category.index + ':' + Number(plan.discount_percent)
+    : 'plan-group:' + category.index + ':1'
+    : 'plans:' + (Math.floor(i/PAGE_SIZE)+1);
+  return card('🎁 ' + plan.plan_name +
     '\nتخفیف: ' + fmt(plan.discount_percent) + '٪' +
-    '\n\nشرایط: ' + String(plan.conditions || 'طبق شرایط طرح').slice(0, 850) +
-    '\n\nتخفیف فقط پس از تحقق تمام شروط طرح قابل اعمال است.', [
-    [key('💰 قیمت محصولات این طرح', 'plan-items:' + plan.plan_id + ':1')],
+    '\n\nشرایط: ' + String(plan.conditions || 'طبق شرایط طرح').slice(0,850) +
+    '\n\nانتخاب مدل‌ها و محاسبه قیمت هر بطری در محصولات و سبد خرید انجام می‌شود.', [
+    [key('📦 محصولات مشمول', 'plan-items:' + plan.plan_id + ':1')],
+    [key('🛒 مشاهده سبد خرید', 'cart')],
     [key('🔙 طرح‌ها', back)],
   ]);
 }
@@ -349,10 +367,9 @@ export function planProducts(plan, data, page = 1) {
   ]);
   const v = pageOf(items, page);
   if (!v) return card('این صفحه در دسترس نیست.');
-  return card('💰 ' + plan.plan_name +
-    '\nمحصول را برای مشاهده قیمت محاسباتی هر بطری انتخاب کنید.\n' +
-    'مبالغ تنها در صورت تحقق شرایط طرح معتبرند.', [
-    ...v.items.map(p => [key(p.product_name, 'quote:' + p.product_id + ':' + plan.plan_id)]),
+  return card('📦 محصولات مشمول ' + plan.plan_name +
+    '\nبرای مشاهده قیمت و انتخاب مدل، وارد مشخصات محصول شوید.', [
+    ...v.items.map(p => [key(p.product_name, 'product:' + p.product_id)]),
     ...(pageButtons(page, v.pages, 'plan-items:' + plan.plan_id).length
       ? [pageButtons(page, v.pages, 'plan-items:' + plan.plan_id)] : []),
     [key('🔙 شرایط طرح', 'plan:' + plan.plan_id)],

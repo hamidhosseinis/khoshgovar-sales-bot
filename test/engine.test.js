@@ -212,8 +212,8 @@ function allPlanSeed(){
     ['D009','DIVERSITY_EXCL_CORE','MINIMUM','',12,''],
     ['D010','DIVERSITY_EXCL_CORE','RANGE','',3,10],
     ['D011','ORIGINAL_CANADA_COMBINED','MINIMUM','',26,''],
-    ['D012','ORIGINAL_SODA','EXACT_MULTIPLE',3,'',''],
-    ['D012','VARIETY_NON_WATER_NON_MILK','EXACT_MULTIPLE',1,'','']
+    ['D012','ORIGINAL_CANADA_COMBINED','EXACT_MULTIPLE',3,'',''],
+    ['D012','DIVERSITY_EXCL_CORE','EXACT_MULTIPLE',1,'','']
   ];
   raw.Discount_Plans.push(...newPlans.map(([id,percent,max])=>plan(id,percent,max)));
   raw.Plan_Requirements.push(...newReqs.map(([plan_id,group_id,quantity_rule,packs_per_step,min_packs,max_packs])=>({
@@ -268,14 +268,16 @@ test('plan D011: 26 boxes total original + Canada, no water, no duplicate count'
 test('plan D012: 3 original plus 1 independent eligible pack, no overlap or water/milk',()=>{
   const d=publicData(allPlanSeed(),today);
   assert.ok(!ids(cart(['ORG',3]),d).includes('D012'));
-  assert.ok(ids(cart(['ORG',3],['CAN',1]),d).includes('D012'));
-  assert.ok(ids(cart(['ORG',4]),d).includes('D012'));
+  assert.ok(!ids(cart(['ORG',3],['CAN',1]),d).includes('D012'));
+  assert.ok(ids(cart(['CAN',3],['ENERGY',1]),d).includes('D012'));
+  assert.ok(!ids(cart(['ORG',4]),d).includes('D012'));
   assert.ok(ids(cart(['ORG',3],['ENERGY',1]),d).includes('D012'));
   assert.ok(!ids(cart(['ORG',3],['MILK',1]),d).includes('D012'));
   assert.ok(!ids(cart(['ORG',3],['OTHER_WATER',1]),d).includes('D012'));
   assert.ok(!ids(cart(['ORG',3],['CAN',2]),d).includes('D012'));
   assert.ok(!ids(cart(['ORG',2],['CAN',2]),d).includes('D012'));
-  const four=eligiblePlans(cart(['ORG',3],['CAN',1]),d).find(x=>x.plan.plan_id==='D012');
+  assert.ok(ids(cart(['ORG',2],['CAN',1],['ENERGY',1]),d).includes('D012'));
+  const four=eligiblePlans(cart(['ORG',3],['ENERGY',1]),d).find(x=>x.plan.plan_id==='D012');
   assert.equal(four.items.reduce((n,x)=>n+x.qty,0),4);
 });
 test('new plan approval gates remain closed for D007-D012 draft sheets',()=>{
