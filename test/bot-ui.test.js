@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   PAGE_SIZE, mainMenu, welcome, mergePublicCatalog, productList, productFamilyList,
   productFamilies, productDetail,
-  approvedSinglePackOffer, variantsList, planList, planDetail, planQuote, planProducts,
+  approvedSinglePackOffer, variantsList, planList, planCategories, planGroupList, planDetail, planQuote, planProducts,
   finalPriceList, discountedToman, sheetToman, unitDetail, searchResults,
 } from '../src/bot-ui.js';
 
@@ -129,4 +129,25 @@ test('back and home share a compact inline row on detail screens', () => {
   const menu = mainMenu();
   assert.deepEqual(callbacks(menu).slice(0, 4),
     ['products:1', 'plans:1', 'search']);
+});
+
+test('canonical plan categories drive compact public plan navigation', () => {
+  const catalog = {...data, plans: [
+    {...plan, plan_category_fa:'نوشابه اورجینال'},
+    {plan_id:'D004', plan_name:'طرح کانادا', discount_percent:'16',
+      conditions:'حداقل ۱۱ بسته', plan_category_fa:'نوشابه کانادا'},
+    {plan_id:'D005', plan_name:'طرح لیموناد', discount_percent:'23',
+      conditions:'۱۰+۵', plan_category_fa:'نوشابه کانادا'},
+  ]};
+  assert.deepEqual(planCategories(catalog).map(x => x.name),
+    ['نوشابه اورجینال','نوشابه کانادا']);
+  assert.deepEqual(callbacks(planList(catalog)).filter(x => x.startsWith('plan-group:')),
+    ['plan-group:1:1','plan-group:2:1']);
+  assert.deepEqual(callbacks(planGroupList(catalog,2)).filter(x => x.startsWith('plan:')),
+    ['plan:D004','plan:D005']);
+  assert.ok(callbacks(planDetail(catalog.plans[2],catalog)).includes('plan-group:2:1'));
+  assert.match(planGroupList(catalog,10).text, /در دسترس نیست/);
+  const mixed = {...catalog, plans: [...catalog.plans, {...plan, plan_id:'D006'}]};
+  assert.equal(planCategories(mixed).length, 0);
+  assert.ok(callbacks(planList(mixed)).includes('plan:D001'));
 });
