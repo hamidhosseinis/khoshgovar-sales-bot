@@ -1,4 +1,5 @@
 import { planAppliesToProduct } from './plan-visibility.js';
+import { quantities, qualifies, monetaryEvaluation } from './engine.js';
 import { CONSULTATION_BUTTON_TEXT, CONSULTATION_CHAT_URL } from './consultation.js';
 
 // All customer navigation is inline. No reply keyboard or cart UI.
@@ -31,7 +32,7 @@ export function card(text, rows = [], withHome = true) {
 }
 export function mainMenu() {
   return card('🥤 منوی فروش خوشگوار\nبخش موردنظر را انتخاب کنید:', [
-    [key('📦 محصولات', 'products:1'), key('💰 قیمت‌ها', 'prices:1')],
+    [key('📦 محصولات', 'products:1')],
     [key('🏷 طرح‌های فروش', 'plans:1'), key('🔎 جستجو', 'search')],
     [{ text: CONSULTATION_BUTTON_TEXT, url: CONSULTATION_CHAT_URL }],
   ], false);
@@ -69,11 +70,52 @@ const consumerText = p => p.consumer_price
     ': ' + toman(p.consumer_price.amountIRR) : null;
 const baseText = p => p.box_base_price
   ? '🏷 پایه هر بسته: ' + toman(p.box_base_price.amountIRR) : null;
-function pricedProducts(data) {
-  return data.products.filter(p => p.consumer_price || p.box_base_price);
-}
 function compatiblePlans(p, data) {
   return data.plans.filter(plan => planAppliesToProduct(p, plan, data));
+}
+
+// One pack is eligible only if every published quantity condition passes.
+// No quote is issued without verified tax-inclusive base and rounding policy.
+export function approvedSinglePackOffer(product, data, env) {
+  const entries = quantities([{product_id: product.product_id, qty: 1}], data);
+  if (entries.length !== 1) return null;
+  let best = null;
+  for (const plan of compatiblePlans(product, data)) {
+    // Only D001 is approved in the current business-rule catalogue for a
+    // one-pack tier (original soda, 1–10 packs). Protect against a modified
+    // Sheet requirement making a multi-pack plan look like a single-pack deal.
+    if (plan.plan_id !== 'D001') continue;
+    const requirements = data.requirements.filter(r => r.plan_id === plan.plan_id);
+    if (requirements.length !== 1 || requirements[0].group_id !== 'ORIGINAL_SODA' ||
+        requirements[0].quantity_rule !== 'RANGE' ||
+        Number(requirements[0].min_packs) !== 1 ||
+        Number(requirements[0].max_packs) !== 10) continue;
+    if (!qualifies(entries, plan, data)) continue;
+    const result = monetaryEvaluation({plan, items: entries}, env);
+    const priceIRR = result?.itemPrices?.[0]?.finalPricePerPackIRR;
+    if (!/^[1-9]\d*$/.test(String(priceIRR ?? ''))) continue;
+    if (!best || BigInt(priceIRR) < BigInt(best.priceIRR)) best = {plan, priceIRR};
+  }
+  return best;
+}
+function prospectiveMargin(product, priceIRR) {
+  const consumer = product.consumer_price;
+  if (!consumer || !/^[1-9]\d*$/.test(String(consumer.amountIRR ?? '')) ||
+      !['UNIT', 'PACK'].includes(consumer.basis)) return null;
+  const qty = String(product.units_per_pack ?? '');
+  if (consumer.basis === 'UNIT' &&
+      (!/^[1-9]\d*$/.test(qty) || BigInt(qty) > 10000n)) return null;
+  const sale = BigInt(consumer.amountIRR) *
+    (consumer.basis === 'PACK' ? 1n : BigInt(qty));
+  if (sale <= 0n || sale > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+  const spread = sale - BigInt(priceIRR);
+  const abs = spread < 0n ? -spread : spread;
+  // Percent is display-only and rounded to two decimal places.
+  const hundredths = (abs * 10000n + sale / 2n) / sale;
+  const pct = fa((hundredths / 100n).toString() + '٫' +
+    (hundredths % 100n).toString().padStart(2, '0')) + '٪';
+  return {amount: (spread < 0n ? '−' : '') + toman(abs),
+    percent: (spread < 0n ? '−' : '') + pct};
 }
 
 const catalogRules = [
@@ -159,19 +201,7 @@ export function productFamilyList(data, familyId, page = 1) {
     [key('🔙 خانواده‌ها', 'products:' + (Math.floor(index / PAGE_SIZE) + 1))],
   ]);
 }
-export function priceList(data, page = 1) {
-  const items = pricedProducts(data), v = pageOf(items, page);
-  if (!items.length) return card('💰 هنوز قیمت عمومی قابل انتشار وجود ندارد.');
-  if (!v) return card('این صفحه در دسترس نیست.');
-  return card('💰 قیمت‌ها به تومان | ' + fmt(page) + ' از ' + fmt(v.pages), [
-    ...v.items.map(p => [key(p.product_name + ' | ' +
-      (p.consumer_price ? 'مصرف‌کننده ' + toman(p.consumer_price.amountIRR) :
-        'پایه بسته ' + toman(p.box_base_price.amountIRR)),
-    'price:' + p.product_id)]),
-    ...(pageButtons(page, v.pages, 'prices').length ? [pageButtons(page, v.pages, 'prices')] : []),
-  ]);
-}
-export function productDetail(p, data, fromPrices = false) {
+export function productDetail(p, data, env = {}) {
   const lines = ['🥤 ' + p.product_name];
   if (Number(p.units_per_pack) > 0) lines.push('📦 هر بسته: ' + fmt(p.units_per_pack) + ' عدد');
   // Only per-variant approved flavors from the canonical Sheet reach this view.
@@ -179,18 +209,30 @@ export function productDetail(p, data, fromPrices = false) {
   if (p.variants?.length) lines.push('🎨 این محصول شامل طعم‌های زیر است:\n' + p.variants.join('، '));
   if (consumerText(p)) lines.push(consumerText(p));
   if (baseText(p)) lines.push(baseText(p));
-  if (!consumerText(p) && !baseText(p)) lines.push('قیمت عمومی برای این محصول ثبت نشده است.');
-  if (p.variants?.length > 1) lines.push('🎨 قیمت برای تمام طعم‌های این محصول یکسان است.');
-  const pricedIndex = pricedProducts(data).findIndex(x => x.product_id === p.product_id);
+  if (!consumerText(p) && !baseText(p))
+    lines.push('قیمت عمومی برای این محصول ثبت نشده است.');
+  const offer = approvedSinglePackOffer(p, data, env);
+  if (offer) {
+    lines.push('🛍️ قیمت خرید یک بسته با «' + offer.plan.plan_name + '»: ' +
+      toman(offer.priceIRR));
+    lines.push('✅ تخفیف این طرح با خرید یک بسته هم اعمال می‌شود.');
+    const margin = prospectiveMargin(p, offer.priceIRR);
+    if (margin) lines.push('📈 حاشیه سود ناخالص احتمالی: ' + margin.amount +
+      ' (' + margin.percent + ')');
+    else lines.push('📈 حاشیه سود: قیمت مصرف‌کننده معتبر برای محاسبه موجود نیست.');
+    lines.push('حاشیه سود با فرض فروش به قیمت مصرف‌کننده و پیش از سایر هزینه‌هاست.');
+  } else lines.push('💡 قیمت خرید یک بسته و حاشیه سود پس از تأیید طرح و قوانین محاسبه اعلام می‌شود.');
+  if (compatiblePlans(p, data).length)
+    lines.push('🏷 برای تخفیف بیشتر، سایر طرح‌ها و شرایط آن‌ها را ببینید.');
+  if (p.variants?.length > 1)
+    lines.push('🎨 قیمت برای تمام طعم‌های این محصول یکسان است.');
   const family = productFamilies(data).find(f =>
     f.items.some(x => x.product_id === p.product_id));
   const familyIndex = family?.items.findIndex(x => x.product_id === p.product_id) ?? -1;
-  const back = fromPrices ? 'prices:' + (Math.floor(pricedIndex / PAGE_SIZE) + 1)
-    : family ? 'family:' + family.id + ':' + (Math.floor(familyIndex / PAGE_SIZE) + 1)
-      : 'products:1';
+  const back = family ? 'family:' + family.id + ':' +
+    (Math.floor(familyIndex / PAGE_SIZE) + 1) : 'products:1';
   return card(lines.join('\n'), [
-    [key('💰 قیمت تمام‌شده', 'final:' + p.product_id + ':1')],
-    [key('🏷 طرح‌های محصول', 'product-plans:' + p.product_id + ':1'),
+    [key('🏷 طرح‌های تخفیف بیشتر', 'product-plans:' + p.product_id + ':1'),
       ...(p.variants?.length ? [key('🎨 طعم‌ها', 'variants:' + p.product_id + ':1')] : [])],
     [key('🔙 بازگشت', back)],
   ]);
@@ -287,7 +329,7 @@ export function planQuote(p, plan, data) {
   lines.push('اعمال طرح منوط به رعایت تمام شروط آن است.');
   return card(lines.join('\n'), [
     [key('🏷 شرایط طرح', 'plan:' + plan.plan_id)],
-    [key('🔙 قیمت‌های این محصول', 'final:' + p.product_id + ':1')],
+    [key('🔙 طرح‌های محصول', 'product-plans:' + p.product_id + ':1')],
   ]);
 }
 export function finalPriceList(p, data, page = 1) {

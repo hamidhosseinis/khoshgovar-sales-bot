@@ -57,7 +57,8 @@ test('consolidated nostalgic is a single product with a flavor button',async()=>
 test('final-price button and plan route are at SKU level, not flavor level',async()=>{
   const detail=await replyTo(callback('product:P003'));
   assert.match(detail.text,/تومان/);
-  assert.ok(calls(detail).includes('final:P003:1'));
+  assert.ok(!calls(detail).includes('final:P003:1'));
+  assert.ok(calls(detail).includes('product-plans:P003:1'));
   const quote=await replyTo(callback('final:P003:1'));
   assert.match(quote.text,/۵۸٬۸۶۹٫۶۳ تومان/);
   assert.doesNotMatch(quote.text,/ریال/);
@@ -86,7 +87,9 @@ test('menu shortcut and old search text button use the inline flow', async () =>
   const menu = await replyTo(message('/menu'));
   assert.match(menu.text, /منوی فروش خوشگوار/);
   assert.ok(calls(menu).includes('products:1'));
-  assert.ok(calls(menu).includes('prices:1'));
+  assert.ok(!calls(menu).includes('prices:1'));
+  const oldPrice = await replyTo(callback('prices:1'));
+  assert.match(oldPrice.text, /خانواده‌های کالایی/);
   const search = await replyTo(message('🔎 جستجوی محصول'));
   assert.match(search.text, /نام محصول را به صورت پیام بنویسید/);
   assert.ok(calls(search).includes('menu'));
