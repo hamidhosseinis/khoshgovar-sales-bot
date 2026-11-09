@@ -272,8 +272,34 @@ export function unitDetail(p) {
     [key('🔙 مشخصات', 'product:' + p.product_id)],
   ]);
 }
+// Categories are approved business data from the canonical Google Sheet.
+// Incomplete classifications fall back to the flat list, never hiding a plan.
+export function planCategories(data) {
+  const entries = data.plans || [];
+  if (!entries.length || entries.some(p => !p.plan_category_fa)) return [];
+  const categories = new Map();
+  for (const plan of entries) {
+    const name = String(plan.plan_category_fa).trim();
+    if (!name) return [];
+    if (!categories.has(name)) categories.set(name, []);
+    categories.get(name).push(plan);
+  }
+  return [...categories].map(([name, plans], i) => ({index: i + 1, name, plans}));
+}
 export function planList(data, page = 1) {
   if (!data.plans.length) return card('🏷 فعلاً طرح عمومی معتبر وجود ندارد.');
+  const categories = planCategories(data);
+  if (categories.length) {
+    const v = pageOf(categories, page);
+    if (!v) return card('این صفحه در دسترس نیست.');
+    return card('🏷 دسته‌بندی طرح‌های فروش' +
+      (v.pages > 1 ? ' | ' + fmt(page) + ' از ' + fmt(v.pages) : '') +
+      '\nخانواده طرح موردنظر را انتخاب کنید.', [
+      ...v.items.map(c => [key(c.name + ' (' + fmt(c.plans.length) + ' طرح)',
+        'plan-group:' + c.index + ':1')]),
+      ...(pageButtons(page, v.pages, 'plans').length ? [pageButtons(page, v.pages, 'plans')] : []),
+    ]);
+  }
   const v = pageOf(data.plans, page);
   if (!v) return card('این صفحه در دسترس نیست.');
   return card('🏷 طرح‌های فروش | ' + fmt(page) + ' از ' + fmt(v.pages) +
@@ -283,14 +309,34 @@ export function planList(data, page = 1) {
     ...(pageButtons(page, v.pages, 'plans').length ? [pageButtons(page, v.pages, 'plans')] : []),
   ]);
 }
+export function planGroupList(data, categoryIndex, page = 1) {
+  const category = planCategories(data)[categoryIndex - 1];
+  if (!Number.isSafeInteger(categoryIndex) || !category) return card('این دسته طرح در دسترس نیست.');
+  const v = pageOf(category.plans, page);
+  if (!v) return card('این صفحه در دسترس نیست.');
+  return card('🏷 ' + category.name +
+    (v.pages > 1 ? ' | ' + fmt(page) + ' از ' + fmt(v.pages) : '') +
+    '\nطرح و درصد تخفیف را انتخاب کنید.', [
+    ...v.items.map(p => [key(p.plan_name + ' | ' + fmt(p.discount_percent) + '٪',
+      'plan:' + p.plan_id)]),
+    ...(pageButtons(page, v.pages, 'plan-group:' + categoryIndex).length
+      ? [pageButtons(page, v.pages, 'plan-group:' + categoryIndex)] : []),
+    [key('🔙 دسته‌های طرح', 'plans:' + (Math.floor((categoryIndex - 1) / PAGE_SIZE) + 1))],
+  ]);
+}
 export function planDetail(plan, data) {
   const i = data.plans.findIndex(p => p.plan_id === plan.plan_id);
+  const categories = planCategories(data);
+  const category = categories.find(c => c.plans.some(p => p.plan_id === plan.plan_id));
+  const inCategory = category ? category.plans.findIndex(p => p.plan_id === plan.plan_id) : -1;
+  const back = category ? 'plan-group:' + category.index + ':' +
+    (Math.floor(inCategory / PAGE_SIZE) + 1) : 'plans:' + (Math.floor(i / PAGE_SIZE) + 1);
   return card('🏷 ' + plan.plan_name +
     '\nتخفیف: ' + fmt(plan.discount_percent) + '٪' +
     '\n\nشرایط: ' + String(plan.conditions || 'طبق شرایط طرح').slice(0, 850) +
     '\n\nتخفیف فقط پس از تحقق تمام شروط طرح قابل اعمال است.', [
     [key('💰 قیمت محصولات این طرح', 'plan-items:' + plan.plan_id + ':1')],
-    [key('🔙 طرح‌ها', 'plans:' + (Math.floor(i / PAGE_SIZE) + 1))],
+    [key('🔙 طرح‌ها', back)],
   ]);
 }
 export function planProducts(plan, data, page = 1) {
