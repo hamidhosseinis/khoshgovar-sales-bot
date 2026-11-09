@@ -47,13 +47,13 @@ test('catalog shows families first, then every published model with per-family p
   assert.match(productFamilyList(data, 'original', 4).text, /در دسترس نیست/);
   const detail = productDetail(products[0], data);
   assert.match(detail.text, /۱۲٬۲۰۰ تومان/);
-  assert.match(detail.text, /پایه هر بسته: ۶۵۴٬۱۰۷ تومان/);
-  assert.match(detail.text, /پایه هر عدد: ۱۰۹٬۰۱۷٫۸۳۳۳۳۳۳۳۳۳۳ تومان/);
+  assert.match(detail.text, /تعداد در بسته: ۶ عدد/);
+  assert.match(detail.text, /قیمت پایه هر عدد: ۱۰۹٬۰۱۷٫۸۳۳۳۳۳۳۳۳۳۳ تومان/);
   assert.doesNotMatch(detail.text, /ریال|۶۵٬۴۱۰٫۷|طعم کوکاکولا/);
   assert.ok(!callbacks(detail).includes('final:P003:1'));
   assert.ok(callbacks(detail).includes('product-plans:P003:1'));
-  assert.match(detail.text, /قیمت خرید یک بسته و حاشیه سود پس از تأیید/);
-  assert.ok(callbacks(detail).includes('variants:P003:1'));
+  assert.match(detail.text, /طرح تخفیفی دارد؛ قیمت یک بسته قابل اعلام نیست/);
+  assert.ok(!callbacks(detail).includes('variants:P003:1'));
   assert.ok(!callbacks(detail).some(x => x.startsWith('add:')));
 });
 test('product detail shows each approved flavor inline instead of hiding them behind a button', () => {
@@ -67,8 +67,8 @@ test('product detail shows each approved flavor inline instead of hiding them be
   };
   const catalog = {...data, products: [item]};
   const detail = productDetail(item, catalog);
-  assert.match(detail.text, /این محصول شامل طعم‌های زیر است:\nانگور، بلوبری، موهیتو، انبه/);
-  assert.ok(callbacks(detail).includes('variants:P022:1'));
+  assert.match(detail.text, /🎨 طعم‌ها: انگور، بلوبری، موهیتو، انبه/);
+  assert.ok(!callbacks(detail).includes('variants:P022:1'));
   assert.match(productDetail(item, catalog).text, /انگور، بلوبری، موهیتو، انبه/);
   const privateItem = {...item, variants: []};
   assert.doesNotMatch(productDetail(privateItem, {...catalog, products:[privateItem]}).text,
