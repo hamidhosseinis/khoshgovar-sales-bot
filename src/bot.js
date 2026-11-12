@@ -1,4 +1,5 @@
 import { sheetCatalog } from './sheets.js';
+import { isAuthorizedOwner } from './messages.js';
 import {
   card, welcome, mainMenu, mergePublicCatalog, productList, productFamilyList,
   productDetail, unitDetail, variantsList, planList, planGroupList, planRateList, planDetail,
@@ -16,7 +17,8 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
   const user = cb?.from || message?.from;
   if (!message || message.chat?.type !== 'private' ||
       !Number.isSafeInteger(message.chat?.id) ||
-      !Number.isSafeInteger(user?.id) || user.id !== message.chat.id) return null;
+      !Number.isSafeInteger(user?.id) || user.id !== message.chat.id ||
+      !isAuthorizedOwner(user, env)) return null;
   const content = cb?.data || (typeof message.text === 'string' ? message.text.trim() : '');
   if (content === '/start' || content === '/help' || content === '/menu' ||
       content === 'ℹ️ راهنما') return welcome();
