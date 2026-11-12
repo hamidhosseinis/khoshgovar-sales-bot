@@ -1,10 +1,10 @@
 # Access model — Khoshgovar Sales Bot
 
-Status: **initial specification only** (not yet implemented or deployed).
+Status: **owner-only access gate implemented in the application**. Production access also requires a securely configured numeric owner ID and a verified deployment. Until then, keep the webhook endpoint disabled.
 
 ## Trust boundaries
 
-The bot serves retail customers and authorized administrators from ONE Telegram interface.
+The bot is temporarily restricted to one verified Telegram owner ID. All other users—including previous retail customers—receive no replies and cannot browse products or plans. This supersedes the customer permissions in the future-state table below.
 The server, not Telegram buttons, must enforce access. **Deny by default.**
 
 | Capability | Customer | Authorized admin |
@@ -19,6 +19,8 @@ The server, not Telegram buttons, must enforce access. **Deny by default.**
 ## Authentication and authorization
 
 - Telegram webhook traffic must be verified using a secret token and HTTPS. Do not trust public requests claiming a Telegram user ID.
+- Owner-only: `ADMIN_TELEGRAM_USER_ID` must contain the owner's **numeric Telegram user ID** as a server-side Worker binding; it must not be derived from a username or provided through a user message. A missing or invalid ID fails closed (no Telegram response, no Sheets read).
+- The public Worker route must not be re-enabled until the owner ID has been verified, the new code deployed, and unauthorized-message/callback tests have passed.
 - **Every** sensitive endpoint and callback must enforce server-side authorization using verified Telegram identity and a role allowlist or authenticated staff identity.
 - Public users cannot provide or override role, owner ID, approval status, or privileged filters.
 - Separate public response models from internal database records; never return sensitive fields and hide them only in the UI.

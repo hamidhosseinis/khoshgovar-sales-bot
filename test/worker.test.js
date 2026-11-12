@@ -5,6 +5,7 @@ import { handleRequest } from '../src/index.js';
 const env = {
   TELEGRAM_BOT_TOKEN: 'TEST_ONLY_NOT_REAL',
   TELEGRAM_WEBHOOK_SECRET: 'TEST_ONLY_WEBHOOK_SECRET',
+  ADMIN_TELEGRAM_USER_ID: '123',
 };
 const url = 'https://example.workers.dev/telegram/webhook';
 function update(text = '/start', userId = 123, chatType = 'private') {
@@ -110,20 +111,47 @@ test('pricing menu denies unapproved calculations', async () => {
   await handleRequest(makeRequest(update('🧮 محاسبه قیمت')), env, fetchMock);
   assert.match(calls[1].data.text, /فعلاً مبلغی نمایش داده نمی‌شود/);
 });
-test('admin command denied without explicit administrator ID', async () => {
+test('missing owner ID silently denies even the administrator command', async () => {
   const { calls, fetchMock } = fakeSender();
-  await handleRequest(makeRequest(update('/admin')), env, fetchMock);
-  assert.equal(calls[1].data.text, 'این بخش در دسترس نیست.');
+  const { ADMIN_TELEGRAM_USER_ID: _unused, ...withoutOwner } = env;
+  const res = await handleRequest(makeRequest(update('/admin')), withoutOwner, fetchMock);
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 0);
 });
-test('admin command denied for another user even if an administrator exists', async () => {
+test('another user receives nothing even if an administrator exists', async () => {
   const { calls, fetchMock } = fakeSender();
-  await handleRequest(makeRequest(update('/admin', 123)), { ...env, ADMIN_TELEGRAM_USER_ID: '444' }, fetchMock);
-  assert.equal(calls[1].data.text, 'این بخش در دسترس نیست.');
+  const res = await handleRequest(makeRequest(update('/admin', 123)), { ...env, ADMIN_TELEGRAM_USER_ID: '444' }, fetchMock);
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 0);
 });
 test('admin command only acknowledges admin for verified private ID; no admin operations', async () => {
   const { calls, fetchMock } = fakeSender();
   await handleRequest(makeRequest(update('/admin', 123)), { ...env, ADMIN_TELEGRAM_USER_ID: '123' }, fetchMock);
   assert.match(calls[1].data.text, /امکانات مدیریت هنوز فعال نشده‌اند/);
+});
+test('owner-only gate rejects non-owner commands, text, and callbacks without Telegram API calls', async () => {
+  const { calls, fetchMock } = fakeSender();
+  for (const text of ['/start', '/products', '/plans', '/consult', 'نوشابه', '/admin']) {
+    const res = await handleRequest(makeRequest(update(text, 444)), env, fetchMock);
+    assert.equal(res.status, 200);
+  }
+  const res = await handleRequest(makeRequest({
+    callback_query: {
+      id: 'UNAUTHORIZED_CB', from: { id: 444 }, data: 'menu',
+      message: { message_id: 42, chat: { id: 444, type: 'private' } },
+    },
+  }), env, fetchMock);
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 0);
+});
+test('owner-only gate fails closed for absent or invalid IDs', async () => {
+  for (const configured of [undefined, '', '0', '123abc', '9007199254740992', '@Hamidhosseinis']) {
+    const { calls, fetchMock } = fakeSender();
+    const ownerEnv = { ...env, ADMIN_TELEGRAM_USER_ID: configured };
+    const res = await handleRequest(makeRequest(update('/start')), ownerEnv, fetchMock);
+    assert.equal(res.status, 200);
+    assert.equal(calls.length, 0);
+  }
 });
 test('group messages and malformed callbacks are ignored', async () => {
   const { calls, fetchMock } = fakeSender();

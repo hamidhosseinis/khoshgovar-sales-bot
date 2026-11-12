@@ -57,7 +57,7 @@ test('family navigation is fail-closed for unknown/empty families and stale page
   const data = { products: [product('P014','دوغ خانواده 1.5 لیتری')] , plans: [], links: [],
     targets: [], requirements: [] };
   const load = async () => data;
-  const reply = value => botReply(cb(value), {}, async () => {}, load);
+  const reply = value => botReply(cb(value), { ADMIN_TELEGRAM_USER_ID: '10' }, async () => {}, load);
   assert.match((await reply('family:original:1')).text, /در دسترس نیست/);
   assert.match((await reply('family:doogh:2')).text, /در دسترس نیست/);
   const listing = await reply('family:doogh:1');
