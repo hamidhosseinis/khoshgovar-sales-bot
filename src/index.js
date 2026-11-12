@@ -1,4 +1,4 @@
-import { publicReply } from './messages.js';
+import { publicReply, isAuthorizedOwner } from './messages.js';
 import { botReply } from './bot.js';
 import { card } from './bot-ui.js';
 import { consultationReply, isConsultationRequest } from './consultation.js';
@@ -124,6 +124,10 @@ export async function handleRequest(request, env, sendFetch = fetch) {
       !Number.isSafeInteger(message.chat?.id) ||
       !Number.isSafeInteger(user?.id) ||
       message.chat.id !== user.id) return response('OK');
+
+  // Owner-only mode: do not answer callbacks, fetch Sheets, or send messages
+  // for other users. If the owner ID is not set, all updates are ignored.
+  if (!isAuthorizedOwner(user, env)) return response('OK');
 
   try {
     const content = callback?.data || (typeof message.text === 'string' ? message.text.trim() : '');
