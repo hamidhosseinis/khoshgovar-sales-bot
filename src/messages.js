@@ -12,11 +12,17 @@ const TEXT = Object.freeze({
   adminDenied: 'این بخش در دسترس نیست.',
   adminPending: 'هویت مدیر تأیید شد. امکانات مدیریت هنوز فعال نشده‌اند؛ هیچ داده داخلی در این نسخه قابل دریافت یا ویرایش نیست.',
 });
+// The numeric Telegram user ID must be configured server-side; usernames are
+// mutable and cannot serve as authorization. Missing/invalid configuration
+// denies EVERYONE, including requests for the public catalog.
+export function isAuthorizedOwner(user, env) {
+  const ownerId = env?.ADMIN_TELEGRAM_USER_ID;
+  return typeof ownerId === 'string' && /^[1-9][0-9]*$/.test(ownerId) &&
+    Number.isSafeInteger(Number(ownerId)) && Number.isSafeInteger(user?.id) &&
+    user.id === Number(ownerId);
+}
 export function isAuthorizedAdmin(message, env) {
-  const adminId = env.ADMIN_TELEGRAM_USER_ID;
-  return typeof adminId === 'string' && /^[1-9][0-9]*$/.test(adminId) &&
-    message.chat?.type === 'private' && Number.isSafeInteger(message.from?.id) &&
-    String(message.from.id) === adminId;
+  return message?.chat?.type === 'private' && isAuthorizedOwner(message?.from, env);
 }
 export function publicReply(message, env) {
   const content = typeof message.text === 'string' ? message.text.trim() : '';
