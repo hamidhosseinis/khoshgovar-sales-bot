@@ -4,7 +4,7 @@ Status: **owner-only access gate implemented in the application**. Production ac
 
 ## Trust boundaries
 
-The bot is temporarily restricted to one verified Telegram owner ID. All other users—including previous retail customers—receive no replies and cannot browse products or plans. This supersedes the customer permissions in the future-state table below.
+The bot is temporarily restricted to one verified Telegram owner ID. Other users—including previous retail customers—cannot browse products or plans. Their only allowed response is a generic private-bot notice to a direct-message `/start` command. All other updates remain silent. This supersedes the customer permissions in the future-state table below.
 The server, not Telegram buttons, must enforce access. **Deny by default.**
 
 | Capability | Customer | Authorized admin |

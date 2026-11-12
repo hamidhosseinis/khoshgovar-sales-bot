@@ -15,11 +15,14 @@ const TEXT = Object.freeze({
 // The numeric Telegram user ID must be configured server-side; usernames are
 // mutable and cannot serve as authorization. Missing/invalid configuration
 // denies EVERYONE, including requests for the public catalog.
-export function isAuthorizedOwner(user, env) {
+export function hasConfiguredOwner(env) {
   const ownerId = env?.ADMIN_TELEGRAM_USER_ID;
   return typeof ownerId === 'string' && /^[1-9][0-9]*$/.test(ownerId) &&
-    Number.isSafeInteger(Number(ownerId)) && Number.isSafeInteger(user?.id) &&
-    user.id === Number(ownerId);
+    Number.isSafeInteger(Number(ownerId));
+}
+export function isAuthorizedOwner(user, env) {
+  return hasConfiguredOwner(env) && Number.isSafeInteger(user?.id) &&
+    user.id === Number(env.ADMIN_TELEGRAM_USER_ID);
 }
 export function isAuthorizedAdmin(message, env) {
   return message?.chat?.type === 'private' && isAuthorizedOwner(message?.from, env);

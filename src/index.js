@@ -1,4 +1,4 @@
-import { publicReply, isAuthorizedOwner } from './messages.js';
+import { publicReply, isAuthorizedOwner, hasConfiguredOwner } from './messages.js';
 import { botReply } from './bot.js';
 import { card } from './bot-ui.js';
 import { consultationReply, isConsultationRequest } from './consultation.js';
@@ -6,6 +6,7 @@ import { syncTelegramWebhook } from './telegram-webhook-sync.js';
 
 const WEBHOOK_PATH = '/telegram/webhook';
 const MAX_BODY_BYTES = 64 * 1024;
+const PRIVATE_BOT_NOTICE = '🔒 این بات خصوصی است و برای دسترسی به آن نیاز به تأیید مدیر دارید.';
 
 // A legacy ReplyKeyboardMarkup can survive client updates. Remove it when
 // the customer sends a command or taps an old bottom-keyboard text button.
@@ -125,9 +126,22 @@ export async function handleRequest(request, env, sendFetch = fetch) {
       !Number.isSafeInteger(user?.id) ||
       message.chat.id !== user.id) return response('OK');
 
-  // Owner-only mode: do not answer callbacks, fetch Sheets, or send messages
-  // for other users. If the owner ID is not set, all updates are ignored.
-  if (!isAuthorizedOwner(user, env)) return response('OK');
+  // The only exception to owner-only replies is a generic /start notice.
+  // No catalog/Sheets access, menus, or callback responses for non-owners.
+  // Without a valid configured owner ID, fail closed and reply to nobody.
+  if (!isAuthorizedOwner(user, env)) {
+    if (!callback && hasConfiguredOwner(env) &&
+        typeof message.text === 'string' &&
+        /^\/start(?:\s|$)/.test(message.text.trim())) {
+      try {
+        await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id,
+          { text: PRIVATE_BOT_NOTICE }, sendFetch);
+      } catch {
+        return response('Temporary failure', 502);
+      }
+    }
+    return response('OK');
+  }
 
   try {
     const content = callback?.data || (typeof message.text === 'string' ? message.text.trim() : '');

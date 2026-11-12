@@ -129,15 +129,29 @@ test('admin command only acknowledges admin for verified private ID; no admin op
   await handleRequest(makeRequest(update('/admin', 123)), { ...env, ADMIN_TELEGRAM_USER_ID: '123' }, fetchMock);
   assert.match(calls[1].data.text, /امکانات مدیریت هنوز فعال نشده‌اند/);
 });
-test('owner-only gate rejects non-owner commands, text, and callbacks without Telegram API calls', async () => {
+test('non-owner /start receives only a generic private-bot notice', async () => {
   const { calls, fetchMock } = fakeSender();
-  for (const text of ['/start', '/products', '/plans', '/consult', 'نوشابه', '/admin']) {
+  for (const command of ['/start', ' /start ', '/start invite_link']) {
+    const res = await handleRequest(makeRequest(update(command, 444)), env, fetchMock);
+    assert.equal(res.status, 200);
+  }
+  assert.equal(calls.length, 3);
+  for (const call of calls) {
+    assert.match(call.endpoint, /\/sendMessage$/);
+    assert.equal(call.data.chat_id, 444);
+    assert.equal(call.data.text, '🔒 این بات خصوصی است و برای دسترسی به آن نیاز به تأیید مدیر دارید.');
+    assert.equal(call.data.reply_markup, undefined);
+  }
+});
+test('non-owner commands, text, and callbacks other than /start stay silent', async () => {
+  const { calls, fetchMock } = fakeSender();
+  for (const text of ['/products', '/plans', '/consult', '/help', '/menu', '/admin', 'نوشابه', '/started']) {
     const res = await handleRequest(makeRequest(update(text, 444)), env, fetchMock);
     assert.equal(res.status, 200);
   }
   const res = await handleRequest(makeRequest({
     callback_query: {
-      id: 'UNAUTHORIZED_CB', from: { id: 444 }, data: 'menu',
+      id: 'UNAUTHORIZED_CB', from: { id: 444 }, data: '/start',
       message: { message_id: 42, chat: { id: 444, type: 'private' } },
     },
   }), env, fetchMock);
@@ -155,6 +169,7 @@ test('owner-only gate fails closed for absent or invalid IDs', async () => {
 });
 test('group messages and malformed callbacks are ignored', async () => {
   const { calls, fetchMock } = fakeSender();
+  await handleRequest(makeRequest(update('/start', 444, 'group')), env, fetchMock);
   await handleRequest(makeRequest(update('/admin', 123, 'group')), env, fetchMock);
   await handleRequest(makeRequest({ callback_query: { from: { id: 123 }, data: 'admin' } }), env, fetchMock);
   assert.equal(calls.length, 0);
