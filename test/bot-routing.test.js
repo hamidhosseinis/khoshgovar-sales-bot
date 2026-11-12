@@ -25,7 +25,7 @@ const callback = text => ({callback_query:{from:{id:123},data:text,
   message:{chat:{id:123,type:'private'},message_id:100}}});
 const calls = reply => reply.reply_markup.inline_keyboard.flat()
   .map(x => x.callback_data).filter(Boolean);
-const replyTo = (u,env={}) => botReply(u,env,async()=>{},async()=>data);
+const replyTo = (u,env={}) => botReply(u,{ADMIN_TELEGRAM_USER_ID:'123',...env},async()=>{},async()=>data);
 
 test('catalog entry opens families and every model remains accessible with search',async()=>{
   const list=await replyTo(message('/products'));
@@ -78,6 +78,13 @@ test('legacy cart actions return the menu without accessing runtime storage',asy
     assert.ok(!calls(view).some(x=>x.startsWith('cart')));
   }
   assert.match((await replyTo(message('🛒 سبد خرید'),env)).text,/منوی فروش خوشگوار/);
+});
+test('direct bot router also refuses non-owner and missing owner ID', async () => {
+  const external = message('/products');
+  external.message.from.id = 444;
+  external.message.chat.id = 444;
+  assert.equal(await replyTo(external), null);
+  assert.equal(await replyTo(message('/products'), {ADMIN_TELEGRAM_USER_ID:''}), null);
 });
 test('forged callers and unapproved products remain inaccessible',async()=>{
   const forged=callback('quote:P003:D001');
