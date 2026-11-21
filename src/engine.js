@@ -144,7 +144,22 @@ function approvedInlineVariants(product) {
   }
   return names;
 }
-export function publicData(rows, today) {
+// Owner-visible pricing tiers must come only from the canonical Price_Rates tab.
+// This flag is distinct from permission to make prices available to customers.
+// No stale or unapproved percentage may be inferred from old promotion tabs.
+export function approvedOwnerRates(rows) {
+  const rates = new Set();
+  for (const row of rows || []) {
+    const raw = String(row.discount_percent ?? '').trim();
+    if (!allowed(row.is_active) || !allowed(row.approved_for_owner) ||
+        row.review_status !== 'OWNER_APPROVED' ||
+        !/^[1-9]\\d?$/.test(raw)) continue;
+    const rate = Number(raw);
+    if (rate >= 1 && rate <= 99) rates.add(rate);
+  }
+  return [...rates].sort((a, b) => a - b);
+}
+export function publicData(rows, today, options = {}) {
   const variants = new Map();
   for (const v of rows.Product_Variants || []) {
     const pid = String(v.product_id || '');
@@ -165,6 +180,12 @@ export function publicData(rows, today) {
       base_price_basis: approvedBase ? 'PACK_WITH_TAX' : null,
       final_price_approved_for_public: Boolean(approvedBase),
       consumer_price: publicConsumerPrice(p, today),
+      // Private owner view only. The source lacks an approved currency for
+      // consumer_price_per_bottle, so never label this raw amount IRR/toman.
+      owner_consumer_price_raw: options.ownerOnly &&
+        /^[1-9]\\d*$/.test(String(p.consumer_price_per_bottle ?? '').trim()) &&
+        BigInt(String(p.consumer_price_per_bottle).trim()) <= BigInt(Number.MAX_SAFE_INTEGER)
+          ? String(p.consumer_price_per_bottle).trim() : null,
       box_base_price: publicBoxBase(p),
       variants: [...new Set([...(variants.get(p.product_id) || []),
         ...approvedInlineVariants(p)])].slice(0, 30),
@@ -183,6 +204,7 @@ export function publicData(rows, today) {
     productIds.has(p.product_id) && allowed(p.is_active) && allowed(p.approved_for_public));
   return {
     products, plans, links,
+    priceRates: options.ownerOnly ? approvedOwnerRates(rows.Price_Rates) : [],
     requirements: (rows.Plan_Requirements || []).filter(r => ids.has(r.plan_id)).map(r => ({
       plan_id:r.plan_id, group_id:r.group_id, packs_per_step:r.packs_per_step,
       min_packs:r.min_packs, max_packs:r.max_packs, quantity_rule:r.quantity_rule,
