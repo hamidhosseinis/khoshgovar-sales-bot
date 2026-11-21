@@ -224,11 +224,11 @@ export function productDetail(p, data, env = {}) {
   // card. Nothing is inferred from retired sales plans or quantity conditions.
   const lines = ['🥤 ' + p.product_name];
   lines.push('📦 تعداد در بسته: ' +
-    (/^[1-9]\\d*$/.test(String(p.units_per_pack ?? ''))
+    (/^[1-9]\d*$/.test(String(p.units_per_pack ?? ''))
       ? fmt(p.units_per_pack) + ' عدد' : 'نامشخص'));
   const consumer = consumerText(p);
   const ownerConsumer = p.owner_consumer_price_raw &&
-    /^[1-9]\\d*$/.test(String(p.owner_consumer_price_raw))
+    /^[1-9]\d*$/.test(String(p.owner_consumer_price_raw))
       ? '💳 قیمت مصرف‌کننده هر بطری: ' + fmt(p.owner_consumer_price_raw) +
         ' (واحد پول تأیید نشده)' : null;
   lines.push(consumer || ownerConsumer || '💳 قیمت مصرف‌کننده هر بطری: منتشر نشده');
@@ -253,7 +253,7 @@ export function productDetail(p, data, env = {}) {
   const familyIndex = family?.items.findIndex(x => x.product_id === p.product_id) ?? -1;
   const back = family ? 'family:' + family.id + ':' +
     (Math.floor(familyIndex / PAGE_SIZE) + 1) : 'products:1';
-  return card(lines.join('\\n'), [
+  return card(lines.join('\n'), [
     [key('🔙 بازگشت', back)],
   ]);
 }
