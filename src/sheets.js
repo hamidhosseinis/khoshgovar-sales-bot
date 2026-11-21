@@ -5,9 +5,10 @@ import { publicData } from './engine.js';
 // The canonical workbook now embeds variants_json in Products and no longer
 // contains a Product_Variants tab. Referencing a deleted tab makes the entire
 // Sheets values:batchGet request fail, including the published product list.
+// All discount percentages are sourced from the sole canonical workbook.
+ // Retired promotion/quantity-plan tabs are deliberately not fetched.
 const TABS = {
-  Products:'A1:U1000', Discount_Plans:'A1:M201', Product_Plans:'A1:E1001',
-  Plan_Requirements:'A1:I501', Plan_Discount_Targets:'A1:E501',
+  Products:'A1:U1000', Price_Rates:'A1:E61',
 };
 let tokenCache = null;
 let dataCache = null;
@@ -69,7 +70,7 @@ export async function sheetCatalog(env, requestFetch=fetch, now=Date.now()) {
     throw Error('sheet_invalid');
   const rows={};
   Object.keys(TABS).forEach((name,index)=>{rows[name]=rowsFromTable(payload.valueRanges[index]?.values);});
-  const data=publicData(rows,new Date(now).toISOString().slice(0,10));
+  const data=publicData(rows,new Date(now).toISOString().slice(0,10), { ownerOnly: true });
   // A failed remote refresh must fail closed; a prior snapshot is NOT served after expiry.
   dataCache={id:env.SALES_SPREADSHEET_ID,data,exp:now+60000};
   return data;
