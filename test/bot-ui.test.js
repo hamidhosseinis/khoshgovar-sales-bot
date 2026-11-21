@@ -18,7 +18,7 @@ const products = Array.from({ length: 11 }, (_, i) =>
   priced('P' + String(i + 3).padStart(3, '0'), 'نوشابه اورجینال محصول ' + (i + 3)));
 const plan = { plan_id: 'D001', plan_name: 'طرح ۱', discount_percent: '10',
   conditions: 'از ۱ تا ۱۰ بسته' };
-const data = { products, plans: [plan],
+const data = { products, priceRates:[10,12,13,15,16,20,25,30,33], plans: [plan],
   links: [{product_id:'P003',plan_id:'D001'}],
   targets:[{plan_id:'D001',group_id:'ORIGINAL_SODA'}],requirements:[] };
 const keys = view => view.reply_markup.inline_keyboard.flat();
@@ -30,7 +30,7 @@ test('inline navigation excludes the retired cart and reply keyboard', () => {
   assert.ok(menu.reply_markup.inline_keyboard.length);
   assert.equal(menu.reply_markup.keyboard, undefined);
   assert.ok(callbacks(menu).includes('products:1'));
-  assert.ok(callbacks(menu).includes('plans:1'));
+  assert.ok(!callbacks(menu).includes('plans:1'));
   assert.ok(!callbacks(menu).includes('prices:1'));
   assert.ok(!keys(menu).some(k => k.text === '💰 قیمت‌ها'));
   assert.ok(keys(menu).some(x => x.url === 'https://t.me/Hamidhosseinis'));
@@ -50,9 +50,10 @@ test('catalog shows families first, then every published model with per-family p
   assert.match(detail.text, /تعداد در بسته: ۶ عدد/);
   assert.match(detail.text, /قیمت پایه هر بطری: ۱۰۹٬۰۱۸ تومان/);
   assert.doesNotMatch(detail.text, /ریال|۶۵٬۴۱۰٫۷|طعم کوکاکولا/);
-  assert.ok(callbacks(detail).includes('final:P003:1'));
+  assert.ok(!callbacks(detail).includes('final:P003:1'));
+  assert.match(detail.text, /۹۸٬۱۱۷ تومان/);
   assert.ok(!callbacks(detail).some(x=>x.startsWith('cart')));
-  assert.match(detail.text, /طرح تخفیفی دارد؛ قیمت هر بطری قابل اعلام نیست/);
+  assert.match(detail.text, /قیمت تمام‌شده محاسباتی هر بطری/);
   assert.ok(!callbacks(detail).includes('variants:P003:1'));
   assert.ok(!callbacks(detail).some(x => x.startsWith('add:')));
 });
@@ -143,7 +144,7 @@ test('back and home share a compact inline row on detail screens', () => {
     .map(button => button.callback_data), ['plans:1', 'menu']);
   const menu = mainMenu();
   assert.deepEqual(callbacks(menu).slice(0, 4),
-    ['products:1', 'plans:1', 'search']);
+    ['products:1', 'search']);
 });
 
 test('canonical plan categories drive compact public plan navigation', () => {
