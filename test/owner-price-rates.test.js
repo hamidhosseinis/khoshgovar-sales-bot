@@ -55,7 +55,10 @@ test('default public catalog does not contain owner-only rates or private consum
   const data = publicData(source(), today);
   assert.deepEqual(data.priceRates, []);
   assert.equal(data.products[0].owner_consumer_price_raw, null);
-  assert.match(productDetail(data.products[0], data).text, /نرخ تأییدشده برای محاسبه موجود نیست/);
+  const publicCard = productDetail(data.products[0], data).text;
+  assert.doesNotMatch(publicCard, /۱۵۰٬۰۰۰ تومان|واحد پول تأیید نشده/);
+  assert.match(publicCard, /قیمت مصرف‌کننده هر بطری: منتشر نشده/);
+  assert.match(publicCard, /نرخ تأییدشده برای محاسبه موجود نیست/);
 });
 
 test('invalid or unapproved base never produces a discounted price', () => {
