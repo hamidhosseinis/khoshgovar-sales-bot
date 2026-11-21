@@ -71,7 +71,7 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
     return p ? productDetail(p, data, env) : notFound();
   }
   if (['🎁 طرح‌های فروش', '🏷 طرح‌های فروش', '🏷 طرح‌های عمومی', '/plans'].includes(content) ||
-      /^(?:plans:|plan:|plan-group:|plan-rate:|plan-items:|quote:|\\/plan(?:\\s|$))/i.test(content))
+      /^(?:plans:|plan:|plan-group:|plan-rate:|plan-items:|quote:|\/plan(?:\s|$))/i.test(content))
     return mainMenu();
 
   if (['search', '/search', '🔎 جستجوی محصول', '🔎 جستجو'].includes(content))
