@@ -153,7 +153,7 @@ export function approvedOwnerRates(rows) {
     const raw = String(row.discount_percent ?? '').trim();
     if (!allowed(row.is_active) || !allowed(row.approved_for_owner) ||
         row.review_status !== 'OWNER_APPROVED' ||
-        !/^[1-9]\\d?$/.test(raw)) continue;
+        !/^[1-9]\d?$/.test(raw)) continue;
     const rate = Number(raw);
     if (rate >= 1 && rate <= 99) rates.add(rate);
   }
@@ -183,7 +183,7 @@ export function publicData(rows, today, options = {}) {
       // Private owner view only. The source lacks an approved currency for
       // consumer_price_per_bottle, so never label this raw amount IRR/toman.
       owner_consumer_price_raw: options.ownerOnly &&
-        /^[1-9]\\d*$/.test(String(p.consumer_price_per_bottle ?? '').trim()) &&
+        /^[1-9]\d*$/.test(String(p.consumer_price_per_bottle ?? '').trim()) &&
         BigInt(String(p.consumer_price_per_bottle).trim()) <= BigInt(Number.MAX_SAFE_INTEGER)
           ? String(p.consumer_price_per_bottle).trim() : null,
       box_base_price: publicBoxBase(p),
