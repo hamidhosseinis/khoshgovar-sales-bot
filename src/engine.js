@@ -180,8 +180,8 @@ export function publicData(rows, today, options = {}) {
       base_price_basis: approvedBase ? 'PACK_WITH_TAX' : null,
       final_price_approved_for_public: Boolean(approvedBase),
       consumer_price: publicConsumerPrice(p, today),
-      // Private owner view only. The source lacks an approved currency for
-      // consumer_price_per_bottle, so never label this raw amount IRR/toman.
+      // Private owner view only: the canonical consumer_price_per_bottle
+      // is in TOMAN per bottle. This does not grant public price approval.
       owner_consumer_price_raw: options.ownerOnly &&
         /^[1-9]\d*$/.test(String(p.consumer_price_per_bottle ?? '').trim()) &&
         BigInt(String(p.consumer_price_per_bottle).trim()) <= BigInt(Number.MAX_SAFE_INTEGER)

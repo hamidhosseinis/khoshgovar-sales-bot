@@ -229,8 +229,7 @@ export function productDetail(p, data, env = {}) {
   const consumer = consumerText(p);
   const ownerConsumer = p.owner_consumer_price_raw &&
     /^[1-9]\d*$/.test(String(p.owner_consumer_price_raw))
-      ? '💳 قیمت مصرف‌کننده هر بطری: ' + fmt(p.owner_consumer_price_raw) +
-        ' (واحد پول تأیید نشده)' : null;
+      ? '💳 قیمت مصرف‌کننده هر بطری: ' + renderToman(p.owner_consumer_price_raw) : null;
   lines.push(consumer || ownerConsumer || '💳 قیمت مصرف‌کننده هر بطری: منتشر نشده');
   lines.push(unitBaseText(p) || '🏷 قیمت پایه هر بطری: منتشر نشده');
 

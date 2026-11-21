@@ -38,7 +38,8 @@ test('only owner-approved active price rates from canonical tab are displayed', 
   assert.equal(d.products[0].owner_consumer_price_raw, '150000');
   const view = productDetail(d.products[0], d);
   assert.match(view.text, /قیمت پایه هر بطری: ۱۴۷٬۳۲۲ تومان/);
-  assert.match(view.text, /قیمت مصرف‌کننده هر بطری: ۱۵۰٬۰۰۰ \(واحد پول تأیید نشده\)/);
+  assert.match(view.text, /قیمت مصرف‌کننده هر بطری: ۱۵۰٬۰۰۰ تومان/);
+  assert.doesNotMatch(view.text, /واحد پول تأیید نشده|ریال/);
   assert.match(view.text, /قیمت تمام‌شده محاسباتی هر بطری/);
   for(const r of rates) {
     const label = String(r).replace(/\d/g, x=>'۰۱۲۳۴۵۶۷۸۹'[Number(x)]);
@@ -54,7 +55,10 @@ test('default public catalog does not contain owner-only rates or private consum
   const data = publicData(source(), today);
   assert.deepEqual(data.priceRates, []);
   assert.equal(data.products[0].owner_consumer_price_raw, null);
-  assert.match(productDetail(data.products[0], data).text, /نرخ تأییدشده برای محاسبه موجود نیست/);
+  const publicCard = productDetail(data.products[0], data).text;
+  assert.doesNotMatch(publicCard, /۱۵۰٬۰۰۰ تومان|واحد پول تأیید نشده/);
+  assert.match(publicCard, /قیمت مصرف‌کننده هر بطری: منتشر نشده/);
+  assert.match(publicCard, /نرخ تأییدشده برای محاسبه موجود نیست/);
 });
 
 test('invalid or unapproved base never produces a discounted price', () => {
