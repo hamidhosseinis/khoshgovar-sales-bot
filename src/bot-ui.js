@@ -33,7 +33,6 @@ export function card(text, rows = [], withHome = true) {
 export function mainMenu() {
   return card('🥤 منوی فروش خوشگوار\nبخش موردنظر را انتخاب کنید:', [
     [key('📦 محصولات', 'products:1')],
-    [key('🎁 طرح‌های فروش', 'plans:1')],
     [key('🔎 جستجو', 'search')],
     [{ text: CONSULTATION_BUTTON_TEXT, url: CONSULTATION_CHAT_URL }],
   ], false);
@@ -221,28 +220,30 @@ export function productFamilyList(data, familyId, page = 1) {
   ]);
 }
 export function productDetail(p, data, env = {}) {
-  const plans = compatiblePlans(p, data);
-  // One compact, fixed-order product card; never fall back to unapproved
-  // prices, plan rules, or raw flavor fields from the Sheet.
+  // The entire owner-only percentage price table is embedded in the product
+  // card. Nothing is inferred from retired sales plans or quantity conditions.
   const lines = ['🥤 ' + p.product_name];
   lines.push('📦 تعداد در بسته: ' +
-    (/^[1-9]\d*$/.test(String(p.units_per_pack ?? ''))
+    (/^[1-9]\\d*$/.test(String(p.units_per_pack ?? ''))
       ? fmt(p.units_per_pack) + ' عدد' : 'نامشخص'));
-  lines.push(consumerText(p) || '💳 قیمت مصرف‌کننده هر بطری: منتشر نشده');
+  const consumer = consumerText(p);
+  const ownerConsumer = p.owner_consumer_price_raw &&
+    /^[1-9]\\d*$/.test(String(p.owner_consumer_price_raw))
+      ? '💳 قیمت مصرف‌کننده هر بطری: ' + fmt(p.owner_consumer_price_raw) +
+        ' (واحد پول تأیید نشده)' : null;
+  lines.push(consumer || ownerConsumer || '💳 قیمت مصرف‌کننده هر بطری: منتشر نشده');
   lines.push(unitBaseText(p) || '🏷 قیمت پایه هر بطری: منتشر نشده');
 
-  const offer = approvedSinglePackOffer(p, data, env);
-  if (offer) {
-    const perBottle = averageUnitToman(offer.priceIRR, p.units_per_pack);
-    if (perBottle) lines.push('💰 قیمت تمام‌شده هر بطری با تخفیف («' +
-      offer.plan.plan_name + '»): ' + perBottle);
-    else lines.push('💡 قیمت تخفیفی هر بطری قابل اعلام نیست.');
-  } else if (plans.length > 1) {
-    lines.push('💡 این محصول طرح‌های تخفیفی متنوع و ترکیبی دارد؛ شرایط را ببینید.');
-  } else if (plans.length) {
-    lines.push('💡 این محصول طرح تخفیفی دارد؛ قیمت هر بطری قابل اعلام نیست.');
+  const rates = Array.isArray(data.priceRates) ? data.priceRates : [];
+  const prices = p.box_base_price ? rates.map(rate => {
+    const amount = discountedBottleToman(p.box_base_price.amountToman, rate, p.units_per_pack);
+    return amount ? '• ' + fmt(rate) + '٪: ' + amount : null;
+  }).filter(Boolean) : [];
+  if (prices.length) {
+    lines.push('💰 قیمت تمام‌شده محاسباتی هر بطری با تخفیف:');
+    lines.push(...prices);
   } else {
-    lines.push('💡 قیمت تخفیفی یک‌بسته‌ای برای این محصول منتشر نشده است.');
+    lines.push('💰 قیمت با تخفیف: پایه و نرخ تأییدشده برای محاسبه موجود نیست.');
   }
   // Variants must be filtered by the server before reaching this view.
   if (p.variants?.length) lines.push('🎨 طعم‌ها: ' + p.variants.join('، '));
@@ -252,8 +253,7 @@ export function productDetail(p, data, env = {}) {
   const familyIndex = family?.items.findIndex(x => x.product_id === p.product_id) ?? -1;
   const back = family ? 'family:' + family.id + ':' +
     (Math.floor(familyIndex / PAGE_SIZE) + 1) : 'products:1';
-  return card(lines.join('\n'), [
-    ...(plans.length ? [[key('🎁 تخفیف‌ها و قیمت هر بطری', 'final:' + p.product_id + ':1')]] : []),
+  return card(lines.join('\\n'), [
     [key('🔙 بازگشت', back)],
   ]);
 }
