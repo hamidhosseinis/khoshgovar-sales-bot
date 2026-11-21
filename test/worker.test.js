@@ -158,6 +158,33 @@ test('non-owner commands, text, and callbacks other than /start stay silent', as
   assert.equal(res.status, 200);
   assert.equal(calls.length, 0);
 });
+test('explicitly allowlisted Telegram user can use customer menu but is not admin', async () => {
+  const allowed = { ...env, ALLOWED_TELEGRAM_USER_IDS: '112213218' };
+  const { calls, fetchMock } = fakeSender();
+  const res = await handleRequest(makeRequest(update('/start', 112213218)), allowed, fetchMock);
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 2);
+  assert.ok(calls[1].data.reply_markup.inline_keyboard);
+  calls.length = 0;
+  await handleRequest(makeRequest(update('/admin', 112213218)), allowed, fetchMock);
+  assert.match(calls[1].data.text, /این بخش در دسترس نیست/);
+  calls.length = 0;
+  await handleRequest(makeRequest(update('/start', 444)), allowed, fetchMock);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].data.text, /بات خصوصی/);
+  calls.length = 0;
+  await handleRequest(makeRequest(update('/start', 123)), allowed, fetchMock);
+  assert.equal(calls.length, 2); // Original owner remains authorized.
+});
+test('invalid approved-user configuration fails closed for added IDs', async () => {
+  for (const ids of [undefined, '', '112213218,not-id', '9007199254740992', '0', ' 112213218']) {
+    const { calls, fetchMock } = fakeSender();
+    await handleRequest(makeRequest(update('/start', 112213218)),
+      { ...env, ALLOWED_TELEGRAM_USER_IDS: ids }, fetchMock);
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].data.text, /بات خصوصی/);
+  }
+});
 test('owner-only gate fails closed for absent or invalid IDs', async () => {
   for (const configured of [undefined, '', '0', '123abc', '9007199254740992', '@Hamidhosseinis']) {
     const { calls, fetchMock } = fakeSender();

@@ -90,6 +90,26 @@ test('direct bot router also refuses non-owner and missing owner ID', async () =
   assert.equal(await replyTo(external), null);
   assert.equal(await replyTo(message('/products'), {ADMIN_TELEGRAM_USER_ID:''}), null);
 });
+test('approved secondary user can browse catalog without acquiring owner-only privileges',async()=>{
+  const approved=message('/products');
+  approved.message.chat.id=112213218;
+  approved.message.from.id=112213218;
+  const list=await replyTo(approved,{ALLOWED_TELEGRAM_USER_IDS:'112213218'});
+  assert.ok(calls(list).includes('family:original:1'));
+  // The test catalog deliberately contains owner-only rates: a second user
+  // must never see the unpublished 10–33% calculation table.
+  const ownedPrice = await replyTo(callback('product:P003'));
+  const secondaryDetail = await replyTo({
+    callback_query:{from:{id:112213218},data:'product:P003',
+      message:{chat:{id:112213218,type:'private'},message_id:42}},
+  },{ALLOWED_TELEGRAM_USER_IDS:'112213218'});
+  assert.match(ownedPrice.text, /۱۰٪:/);
+  assert.doesNotMatch(secondaryDetail.text, /۱۰٪:/);
+  const denied=await replyTo(approved,{ALLOWED_TELEGRAM_USER_IDS:'112213218,invalid'});
+  assert.equal(denied,null);
+  const owner=await replyTo(message('/products'),{ALLOWED_TELEGRAM_USER_IDS:'112213218'});
+  assert.ok(calls(owner).includes('family:original:1'));
+});
 test('forged callers and unapproved products remain inaccessible',async()=>{
   const forged=callback('quote:P003:D001');
   forged.callback_query.from.id=999;

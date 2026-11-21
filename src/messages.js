@@ -24,6 +24,17 @@ export function isAuthorizedOwner(user, env) {
   return hasConfiguredOwner(env) && Number.isSafeInteger(user?.id) &&
     user.id === Number(env.ADMIN_TELEGRAM_USER_ID);
 }
+// Additional approved Telegram IDs may use the customer-facing bot but never
+// inherit owner/admin privileges. Malformed lists deny all additional users.
+export function isAuthorizedUser(user, env) {
+  if (!hasConfiguredOwner(env) || !Number.isSafeInteger(user?.id)) return false;
+  if (isAuthorizedOwner(user, env)) return true;
+  const ids = env?.ALLOWED_TELEGRAM_USER_IDS;
+  if (typeof ids !== 'string' || !/^[1-9][0-9]*(?:,[1-9][0-9]*)*$/.test(ids))
+    return false;
+  const authorized = ids.split(',').map(Number);
+  return authorized.every(Number.isSafeInteger) && authorized.includes(user.id);
+}
 export function isAuthorizedAdmin(message, env) {
   return message?.chat?.type === 'private' && isAuthorizedOwner(message?.from, env);
 }

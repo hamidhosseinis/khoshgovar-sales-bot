@@ -1,4 +1,4 @@
-import { publicReply, isAuthorizedOwner, hasConfiguredOwner } from './messages.js';
+import { publicReply, isAuthorizedUser, hasConfiguredOwner } from './messages.js';
 import { botReply } from './bot.js';
 import { card } from './bot-ui.js';
 import { consultationReply, isConsultationRequest } from './consultation.js';
@@ -126,10 +126,10 @@ export async function handleRequest(request, env, sendFetch = fetch) {
       !Number.isSafeInteger(user?.id) ||
       message.chat.id !== user.id) return response('OK');
 
-  // The only exception to owner-only replies is a generic /start notice.
-  // No catalog/Sheets access, menus, or callback responses for non-owners.
+  // The only exception to approved-user replies is a generic /start notice.
+  // No catalog/Sheets access, menus, or callback responses for unapproved users.
   // Without a valid configured owner ID, fail closed and reply to nobody.
-  if (!isAuthorizedOwner(user, env)) {
+  if (!isAuthorizedUser(user, env)) {
     if (!callback && hasConfiguredOwner(env) &&
         typeof message.text === 'string' &&
         /^\/start(?:\s|$)/.test(message.text.trim())) {

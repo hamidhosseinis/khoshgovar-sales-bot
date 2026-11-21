@@ -1,5 +1,5 @@
 import { sheetCatalog } from './sheets.js';
-import { isAuthorizedOwner } from './messages.js';
+import { isAuthorizedOwner, isAuthorizedUser } from './messages.js';
 import {
   card, welcome, mainMenu, mergePublicCatalog, productList, productFamilyList,
   productDetail, unitDetail, variantsList, searchPrompt, searchResults,
@@ -17,7 +17,7 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
   if (!message || message.chat?.type !== 'private' ||
       !Number.isSafeInteger(message.chat?.id) ||
       !Number.isSafeInteger(user?.id) || user.id !== message.chat.id ||
-      !isAuthorizedOwner(user, env)) return null;
+      !isAuthorizedUser(user, env)) return null;
   const content = cb?.data || (typeof message.text === 'string' ? message.text.trim() : '');
   if (content === '/start' || content === '/help' || content === '/menu' ||
       content === 'ℹ️ راهنما') return welcome();
@@ -25,7 +25,18 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
   if (content === '/admin') return card('دسترسی مدیریت از این مسیر فعال نیست.');
 
   let data;
-  try { data = mergePublicCatalog(await loadCatalog(env, requestFetch)); }
+  try {
+    const ownerOnly = isAuthorizedOwner(user, env);
+    const catalog = await loadCatalog(env, requestFetch, Date.now(), { ownerOnly });
+    // Defense in depth: even a stale/mis-scoped catalog may not expose
+    // owner-only rates or unpublished consumer amounts to added users.
+    const visible = ownerOnly ? catalog : {
+      ...catalog,
+      priceRates: [],
+      products: catalog.products.map(p => ({ ...p, owner_consumer_price_raw: null })),
+    };
+    data = mergePublicCatalog(visible);
+  }
   catch { return card('اتصال به فهرست تأییدشده برقرار نیست.\nاطلاعات تأییدنشده نمایش داده نمی‌شود.'); }
   const canonical = id => (id === 'P001' || id === 'P002') &&
     !data.products.some(p => p.product_id === id) &&
