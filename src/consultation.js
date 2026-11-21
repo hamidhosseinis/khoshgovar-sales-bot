@@ -9,7 +9,7 @@ export function isConsultationRequest(content) {
 
 export function consultationReply() {
   return {
-    text: '💬 برای مشاوره درباره محصولات و طرح‌های فروش، دکمه زیر را بزنید تا گفت‌وگوی خصوصی تلگرام با مشاور باز شود.',
+    text: '💬 برای مشاوره درباره محصولات و قیمت‌ها، دکمه زیر را بزنید تا گفت‌وگوی خصوصی تلگرام با مشاور باز شود.',
     reply_markup: {
       inline_keyboard: [[{ text: '💬 گفت‌وگوی مستقیم با مشاور', url: CONSULTATION_CHAT_URL }]],
     },
