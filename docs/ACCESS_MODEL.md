@@ -1,10 +1,10 @@
 # Access model — Khoshgovar Sales Bot
 
-Status: **owner-only access gate implemented in the application**. Production access also requires a securely configured numeric owner ID and a verified deployment. Until then, keep the webhook endpoint disabled.
+Status: **private allowlist gate implemented in the application**. Production access requires a securely configured numeric owner ID, optional approved-user IDs, and a verified deployment. Until then, keep the webhook endpoint disabled.
 
 ## Trust boundaries
 
-The bot is temporarily restricted to one verified Telegram owner ID. Other users—including previous retail customers—cannot browse products or plans. Their only allowed response is a generic private-bot notice to a direct-message `/start` command. All other updates remain silent. This supersedes the customer permissions in the future-state table below.
+The bot is restricted to the verified Telegram owner ID and any explicitly approved numeric IDs in `ALLOWED_TELEGRAM_USER_IDS`. All other users—including previous retail customers—cannot browse products or plans. Their only allowed response is a generic private-bot notice to a direct-message `/start` command. All other updates remain silent. This supersedes the customer permissions in the future-state table below.
 The server, not Telegram buttons, must enforce access. **Deny by default.**
 
 | Capability | Customer | Authorized admin |
@@ -19,7 +19,8 @@ The server, not Telegram buttons, must enforce access. **Deny by default.**
 ## Authentication and authorization
 
 - Telegram webhook traffic must be verified using a secret token and HTTPS. Do not trust public requests claiming a Telegram user ID.
-- Owner-only: `ADMIN_TELEGRAM_USER_ID` must contain the owner's **numeric Telegram user ID** as a server-side Worker binding; it must not be derived from a username or provided through a user message. A missing or invalid ID fails closed (no Telegram response, no Sheets read).
+- Owner: `ADMIN_TELEGRAM_USER_ID` must contain the owner's **numeric Telegram user ID** as a server-side Worker binding; it must not be derived from a username or provided through a user message. A missing or invalid ID fails closed (no Telegram response, no Sheets read).
+- Additional approved users: `ALLOWED_TELEGRAM_USER_IDS` is a server-side comma-separated list of numeric IDs. These users are not administrators and must not receive any owner-only rate, unapproved price, or private record; cache entries must be separated by role. Invalid lists grant no additional access. The owner remains permitted only when the owner ID is valid.
 - The public Worker route must not be re-enabled until the owner ID has been verified, the new code deployed, and unauthorized-message/callback tests have passed.
 - **Every** sensitive endpoint and callback must enforce server-side authorization using verified Telegram identity and a role allowlist or authenticated staff identity.
 - Public users cannot provide or override role, owner ID, approval status, or privileged filters.
