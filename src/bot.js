@@ -2,8 +2,7 @@ import { sheetCatalog } from './sheets.js';
 import { isAuthorizedOwner } from './messages.js';
 import {
   card, welcome, mainMenu, mergePublicCatalog, productList, productFamilyList,
-  productDetail, unitDetail, variantsList, planList, planGroupList, planRateList, planDetail,
-  productPlanList, planProducts, planQuote, finalPriceList, searchPrompt, searchResults,
+  productDetail, unitDetail, variantsList, searchPrompt, searchResults,
 } from './bot-ui.js';
 
 const idPattern = '[A-Za-z0-9_-]{1,40}';
@@ -32,7 +31,6 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
     !data.products.some(p => p.product_id === id) &&
     data.products.some(p => p.product_id === 'P010') ? 'P010' : id;
   const findProduct = id => data.products.find(p => p.product_id === canonical(id));
-  const findPlan = id => data.plans.find(p => p.plan_id === id);
   let m;
   if (content === '📦 محصولات' || content === '/products') return productList(data);
   if ((m = match(content, '^products:([1-9]\\d{0,2})$')) ||
@@ -65,35 +63,16 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
     const p = findProduct(m[1]);
     return p ? variantsList(p, page(m[2])) : notFound();
   }
-  if ((m = match(content, '^final:(' + idPattern + '):([1-9]\\d{0,2})$'))) {
+  // Retire all stale plan and quote callbacks, including old Telegram buttons.
+  // Existing price shortcuts open the full percentage table on the product.
+  if ((m = match(content, '^final:(' + idPattern + '):([1-9]\\d{0,2})$')) ||
+      (m = match(content, '^product-plans:(' + idPattern + '):([1-9]\\d{0,2})$'))) {
     const p = findProduct(m[1]);
-    return p ? finalPriceList(p, data, page(m[2])) : notFound();
+    return p ? productDetail(p, data, env) : notFound();
   }
-  if ((m = match(content, '^product-plans:(' + idPattern + '):([1-9]\\d{0,2})$'))) {
-    const p = findProduct(m[1]);
-    return p ? productPlanList(p, data, page(m[2])) : notFound();
-  }
-
-  if (['🎁 طرح‌های فروش', '🏷 طرح‌های فروش', '🏷 طرح‌های عمومی', '/plans'].includes(content)) return planList(data);
-  if ((m = match(content, '^plans:([1-9]\\d{0,2})$')))
-    return planList(data, page(m[1]));
-  if ((m = match(content, '^plan-group:([1-9]\\d{0,2}):([1-9]\\d{0,2})$')))
-    return planGroupList(data, page(m[1]), page(m[2]));
-  if ((m = match(content, '^plan-rate:([1-9]\\d{0,2}):([0-9]{1,3})$')))
-    return planRateList(data, page(m[1]), page(m[2]));
-  if ((m = match(content, '^plan:(' + idPattern + ')$')) ||
-      (m = match(content, '^/plan\\s+(' + idPattern + ')$'))) {
-    const plan = findPlan(m[1]);
-    return plan ? planDetail(plan, data) : notFound();
-  }
-  if ((m = match(content, '^plan-items:(' + idPattern + '):([1-9]\\d{0,2})$'))) {
-    const plan = findPlan(m[1]);
-    return plan ? planProducts(plan, data, page(m[2])) : notFound();
-  }
-  if ((m = match(content, '^quote:(' + idPattern + '):(' + idPattern + ')$'))) {
-    const p = findProduct(m[1]), plan = findPlan(m[2]);
-    return p && plan ? planQuote(p, plan, data) : notFound();
-  }
+  if (['🎁 طرح‌های فروش', '🏷 طرح‌های فروش', '🏷 طرح‌های عمومی', '/plans'].includes(content) ||
+      /^(?:plans:|plan:|plan-group:|plan-rate:|plan-items:|quote:|\/plan(?:\s|$))/i.test(content))
+    return mainMenu();
 
   if (['search', '/search', '🔎 جستجوی محصول', '🔎 جستجو'].includes(content))
     return searchPrompt();

@@ -16,6 +16,7 @@ p.push({...product('P010', 'نوشابه نوستالژیک'), category_name:'ن
 p.push(product('P023','آبمیوه گازدار فرشی دی شیشه 250 سی سی'));
 const data = {
   products:p,
+  priceRates:[10,12,13,15,16,20,25,30,33],
   plans:[{plan_id:'D001',plan_name:'طرح ۱',discount_percent:'10',conditions:'۱ تا ۱۰ بسته'}],
   links:[{product_id:'P003',plan_id:'D001'}],
   targets:[{plan_id:'D001',group_id:'ORIGINAL_SODA'}],requirements:[],
@@ -55,18 +56,21 @@ test('consolidated nostalgic shows approved flavors inline; legacy flavor route 
   assert.match(variants.text,/کوکاکولا/);
   assert.match(variants.text,/فانتا پرتقالی/);
 });
-test('final-price button and plan route are at SKU level, not flavor level',async()=>{
+test('product detail includes all nine direct percentage prices; old plan links are retired',async()=>{
   const detail=await replyTo(callback('product:P003'));
-  assert.match(detail.text,/تومان/);
-  assert.ok(calls(detail).includes('final:P003:1'));
+  assert.match(detail.text,/قیمت پایه هر بطری/);
+  assert.match(detail.text,/قیمت مصرف‌کننده هر بطری/);
+  assert.match(detail.text,/۹۸٬۱۱۷ تومان/);
+  for(const rate of ['۱۰','۱۲','۱۳','۱۵','۱۶','۲۰','۲۵','۳۰','۳۳'])
+    assert.ok(detail.text.includes(rate+'٪:'));
+  assert.ok(!calls(detail).some(x=>x.startsWith('final:')||x.startsWith('plan')));
   assert.ok(!calls(detail).some(x=>x.startsWith('cart')));
-  const quote=await replyTo(callback('final:P003:1'));
-  assert.match(quote.text,/۹۸٬۱۱۷ تومان/);
-  assert.doesNotMatch(quote.text,/ریال/);
-  const plan=await replyTo(callback('plan:D001'));
-  assert.ok(calls(plan).includes('plan-items:D001:1'));
-  const planItems=await replyTo(callback('plan-items:D001:1'));
-  assert.ok(calls(planItems).includes('product:P003'));
+  const oldPrice=await replyTo(callback('final:P003:1'));
+  assert.equal(oldPrice.text,detail.text);
+  for(const old of ['/plans','plan:D001','plans:1','plan-items:D001:1','quote:P003:D001']) {
+    const retired=await replyTo(callback(old));
+    assert.match(retired.text,/منوی فروش خوشگوار/);
+  }
 });
 test('legacy cart actions return the menu without accessing runtime storage',async()=>{
   const env={CART_DB:{prepare(){throw Error('cart storage must not be accessed');}}};
@@ -90,8 +94,8 @@ test('forged callers and unapproved products remain inaccessible',async()=>{
   const forged=callback('quote:P003:D001');
   forged.callback_query.from.id=999;
   assert.equal(await replyTo(forged),null);
-  assert.match((await replyTo(callback('quote:PRIVATE:D001'))).text,/در دسترس نیست/);
-  assert.match((await replyTo(callback('quote:P004:D001'))).text,/منتشر نشده/);
+  assert.match((await replyTo(callback('quote:PRIVATE:D001'))).text,/منوی فروش خوشگوار/);
+  assert.match((await replyTo(callback('product:PRIVATE'))).text,/در دسترس نیست/);
 });
 
 test('menu shortcut and old search text button use the inline flow', async () => {
