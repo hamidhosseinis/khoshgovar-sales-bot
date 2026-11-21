@@ -4,7 +4,7 @@ Status: **private allowlist gate implemented in the application**. Production ac
 
 ## Trust boundaries
 
-The bot is restricted to the verified Telegram owner ID and any explicitly approved numeric IDs in `ALLOWED_TELEGRAM_USER_IDS`. All other users—including previous retail customers—cannot browse products or plans. Their only allowed response is a generic private-bot notice to a direct-message `/start` command. All other updates remain silent. This supersedes the customer permissions in the future-state table below.
+The bot is restricted to the verified Telegram owner ID and any explicitly approved numeric IDs in `ALLOWED_TELEGRAM_USER_IDS`. All other users—including previous retail customers—cannot browse products or plans. Their only allowed response is a generic private-bot notice to a direct-message `/start` command, with a single URL button opening the owner's Telegram contact for manual access requests. This does not grant access or provide an automated approval mechanism. All other updates remain silent. This supersedes the customer permissions in the future-state table below.
 The server, not Telegram buttons, must enforce access. **Deny by default.**
 
 | Capability | Customer | Authorized admin |

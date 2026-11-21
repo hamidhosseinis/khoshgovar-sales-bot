@@ -140,7 +140,13 @@ test('non-owner /start receives only a generic private-bot notice', async () => 
     assert.match(call.endpoint, /\/sendMessage$/);
     assert.equal(call.data.chat_id, 444);
     assert.equal(call.data.text, '🔒 این بات خصوصی است و برای دسترسی به آن نیاز به تأیید مدیر دارید.');
-    assert.equal(call.data.reply_markup, undefined);
+    assert.deepEqual(call.data.reply_markup, {
+      inline_keyboard: [[{
+        text: '💬 درخواست دسترسی از مدیر',
+        url: 'https://t.me/Hamidhosseinis',
+      }]],
+    });
+    assert.equal(call.data.reply_markup.inline_keyboard[0][0].callback_data, undefined);
   }
 });
 test('non-owner commands, text, and callbacks other than /start stay silent', async () => {
