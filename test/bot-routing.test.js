@@ -90,6 +90,17 @@ test('direct bot router also refuses non-owner and missing owner ID', async () =
   assert.equal(await replyTo(external), null);
   assert.equal(await replyTo(message('/products'), {ADMIN_TELEGRAM_USER_ID:''}), null);
 });
+test('approved secondary user can browse catalog without acquiring owner-only privileges',async()=>{
+  const approved=message('/products');
+  approved.message.chat.id=112213218;
+  approved.message.from.id=112213218;
+  const list=await replyTo(approved,{ALLOWED_TELEGRAM_USER_IDS:'112213218'});
+  assert.ok(calls(list).includes('family:original:1'));
+  const denied=await replyTo(approved,{ALLOWED_TELEGRAM_USER_IDS:'112213218,invalid'});
+  assert.equal(denied,null);
+  const owner=await replyTo(message('/products'),{ALLOWED_TELEGRAM_USER_IDS:'112213218'});
+  assert.ok(calls(owner).includes('family:original:1'));
+});
 test('forged callers and unapproved products remain inaccessible',async()=>{
   const forged=callback('quote:P003:D001');
   forged.callback_query.from.id=999;
