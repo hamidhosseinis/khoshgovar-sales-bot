@@ -49,10 +49,12 @@ function rowsFromTable(table) {
     return obj;
   });
 }
-export async function sheetCatalog(env, requestFetch=fetch, now=Date.now()) {
+export async function sheetCatalog(env, requestFetch=fetch, now=Date.now(), options={}) {
+  const ownerOnly = options.ownerOnly === true;
   if (!env.GOOGLE_SERVICE_ACCOUNT_JSON ||
       !env.SALES_SPREADSHEET_ID) throw Error('sheet_not_configured');
-  if (dataCache && dataCache.id === env.SALES_SPREADSHEET_ID && dataCache.exp>now) return dataCache.data;
+  if (dataCache && dataCache.id === env.SALES_SPREADSHEET_ID &&
+      dataCache.ownerOnly === ownerOnly && dataCache.exp>now) return dataCache.data;
   let credentials;
   try { credentials=JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON); }
   catch { throw Error('google_credentials_invalid'); }
@@ -70,8 +72,8 @@ export async function sheetCatalog(env, requestFetch=fetch, now=Date.now()) {
     throw Error('sheet_invalid');
   const rows={};
   Object.keys(TABS).forEach((name,index)=>{rows[name]=rowsFromTable(payload.valueRanges[index]?.values);});
-  const data=publicData(rows,new Date(now).toISOString().slice(0,10), { ownerOnly: true });
+  const data=publicData(rows,new Date(now).toISOString().slice(0,10), { ownerOnly });
   // A failed remote refresh must fail closed; a prior snapshot is NOT served after expiry.
-  dataCache={id:env.SALES_SPREADSHEET_ID,data,exp:now+60000};
+  dataCache={id:env.SALES_SPREADSHEET_ID,ownerOnly,data,exp:now+60000};
   return data;
 }
