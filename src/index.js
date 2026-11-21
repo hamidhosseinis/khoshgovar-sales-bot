@@ -1,7 +1,7 @@
 import { publicReply, isAuthorizedUser, hasConfiguredOwner } from './messages.js';
 import { botReply } from './bot.js';
 import { card } from './bot-ui.js';
-import { consultationReply, isConsultationRequest } from './consultation.js';
+import { consultationReply, isConsultationRequest, CONSULTATION_CHAT_URL } from './consultation.js';
 import { syncTelegramWebhook } from './telegram-webhook-sync.js';
 
 const WEBHOOK_PATH = '/telegram/webhook';
@@ -135,7 +135,15 @@ export async function handleRequest(request, env, sendFetch = fetch) {
         /^\/start(?:\s|$)/.test(message.text.trim())) {
       try {
         await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, message.chat.id,
-          { text: PRIVATE_BOT_NOTICE }, sendFetch);
+          {
+            text: PRIVATE_BOT_NOTICE,
+            reply_markup: {
+              inline_keyboard: [[{
+                text: '💬 درخواست دسترسی از مدیر',
+                url: CONSULTATION_CHAT_URL,
+              }]],
+            },
+          }, sendFetch);
       } catch {
         return response('Temporary failure', 502);
       }
