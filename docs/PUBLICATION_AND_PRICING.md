@@ -1,40 +1,55 @@
-# Publication and pricing rules — initial design
+# سیاست نمایش قیمت و حذف طرح‌های فروش
 
-Status: proposal for review, **not yet connected to the company price list**.
+وضعیت: رابط بات خصوصی است. این مخزن مستقل است و وابستگی رسمی به شرکت را نشان نمی‌دهد.
 
-## Information categories
+## مرجع یگانه
 
-**Public / customer approved:** public product name, approved product photo, size, pack quantity, explicitly approved customer price, eligible publicly announced promotions, offer start/end date, terms and regional scope.
+تمام محصولات، قیمت‌ها، مجوزها و نرخ‌های تخفیف صرفاً از فایل مرجع
+Google Sheets تعیین‌شده برای پروژه (شناسه در Secrets محیط اجرا) خوانده می‌شوند.
+هیچ فایل فروش جدید، کپی یا پایگاه موازی مجاز نیست.
 
-**Restricted / internal:** acquisition or procurement prices, margin, internal salesperson data, commercial agreements, private customer discounts, unpublished prices and promotions, internal sales targets, employee or retailer personal details, operational credentials.
+## مدل رابط
 
-**Unknown:** treat as restricted until permission to publish is documented.
+در منوی اصلی بات بخش «طرح‌های فروش» وجود ندارد. کارت هر محصول شامل تعداد
+در بسته، قیمت مصرف‌کننده، قیمت پایه و جدول قیمت محاسباتی هر بطری برای نرخ‌های
+درج‌شده در تب `Price_Rates` است. مسیرهای قبلی طرح و استعلام از دکمه‌های قدیمی
+دیگر به اطلاعات و شرایط فروش قبلی دسترسی نمی‌دهند. سبد خرید وجود ندارد.
 
-## Product record
+## نرخ‌های ویژه صاحب بات
 
-Suggested fields: product_id, sku, public_title, brand, volume, pack_type, units_per_case, approved_public_image_ref, public_description, published, source_id, updated_at.
+فیلدهای `is_active=TRUE`, `approved_for_owner=TRUE` و
+`review_status=OWNER_APPROVED` برای نرخ معتبر الزامی هستند. مجوز صاحب بات
+با `approved_for_public` متفاوت است؛ مجوز عمومی نرخ‌های فعلی FALSE است.
+خواندن نرخ‌ها فقط در مسیر احراز هویت مدیر انجام می‌شود و احراز هویت کاربران
+دیگر همچنان به‌صورت پیش‌فرض رد می‌شود.
 
-Keep internal business fields in separately protected tables/views; never place internal columns in public JSON, exported assets or bot responses.
+## محاسبات
 
-## Public offer record
+`base_price_per_box` در تب `Products` مبلغ **تومان برای هر بسته** است.
+با کنترل `base_box_price_approved_for_public`، همخوانی
+`box_unit_base_price` و تعداد هر بسته، هر نرخ مستقل محاسبه می‌شود:
 
-Suggested fields: offer_id, eligible_product_ids, public_discount_type, public_discount_value, audience, region, min_quantity, starts_at, ends_at, published, approval_actor, approval_at, approved_source_id, updated_at.
+```
+قیمت محاسباتی هر بطری (تومان) =
+ceil((قیمت پایه هر بسته به تومان × (۱۰۰ − درصد تخفیف)) / (۱۰۰ × تعداد در بسته))
+```
 
-An offer can be used by customers only while valid and explicitly published.
+گردکردن فقط یک‌بار و هنگام نمایش هر بطری، رو به بالا تا تومان کامل انجام می‌شود.
+مقادیر پولی با حساب صحیح محاسبه می‌شوند و درصدها با یکدیگر ترکیب نمی‌شوند.
+این مبالغ **مبلغ قطعی فاکتور** محسوب نمی‌شوند، زیرا شمول مالیات در پایه و
+سیاست مالی قطعی تأیید نشده است. عبارت «قیمت تمام‌شده محاسباتی» به همین دلیل
+به کار می‌رود؛ تا تأیید مبنای مالیاتی نباید عنوان «قیمت نهایی قطعی» نمایش داده شود.
 
-## Pricing engine requirements
+## قیمت مصرف‌کننده
 
-- Define whether source prices are in IRR or toman and display units clearly.
-- Obtain verified base price, tax basis, tax rate, discount sequence, case quantity, ceiling/rounding rule, and region from authorized data.
-- Calculate from precise decimal/integer monetary values; do not use floating-point shortcuts for financial accuracy.
-- Do not assume discount percentages stack or that tax is included in base price.
-- Separate customer checkout price from confidential internal costing.
-- Reject missing, stale, mismatched, expired or unapproved prices.
-- Display an effective date and offer conditions.
-- Test with validated real examples before any production price publication.
+اطلاعات `consumer_price_per_bottle` در تب محصولات ثبت شده اما واحد پول
+آن در ستون مرجع مشخص نیست. در نمای خصوصی مدیر، مقدار خام **بدون انتساب واحد
+ریال یا تومان** و با هشدار «واحد پول تأیید نشده» دیده می‌شود؛ قیمت عمومی
+فقط با مجوز مستقل، واحد و بازه اعتبار قابل نمایش است. مقدار خالی صفر نیست.
 
-## Source governance
+## امنیت
 
-The existing Khoshgovar Sheets are possible *input sources*, not automatic permission to publish their contents. Owner must confirm source ownership, accuracy and authorization. Cloudflare/Supabase integration will be specified at a later stage.
-
-This repository is an independent personal software project; no official company endorsement is implied.
+تب‌های قدیمی شرایط فروش غیرفعال و برای نگهداری سوابق مخفی شده‌اند؛ داده‌های
+تاریخی حذف نشده‌اند و بات آنها را نمی‌خواند. هیچ اطلاعات محرمانه، توکن،
+نشانی فایل خصوصی یا یادداشت داخلی نباید به مشتری ارسال شود. اگر Sheets در
+دسترس نباشد، قیمت یا درصدی از منبع جایگزین ساخته نخواهد شد.
