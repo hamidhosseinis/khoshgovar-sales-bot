@@ -28,18 +28,15 @@ test('canonical updated Sheets schema loads products without removed Product_Var
     return json({valueRanges:[
       {values:[[
         'product_id','product_name','units_per_pack','publish_status',
-        'approved_for_public','category_name','flavor','variants_json',
+        'approved_for_public','category_name','flavor','variants_json','consumer_price_per_bottle',
       ],[
         'P003','نوشابه اورجینال 2.5 لیتری',6,'PUBLISHED',true,
         'نوشابه اورجینال','کوکاکولا، فانتا',
-        JSON.stringify([{product_id:'P003',variant_name:'کوکاکولا',approved_for_public:false}]),
+        JSON.stringify([{product_id:'P003',variant_name:'کوکاکولا',approved_for_public:false}]),'150000',
       ],[
-        'P001','',6,'PUBLISHED',true,'نوشابه اورجینال','','',
+        'P001','',6,'PUBLISHED',true,'نوشابه اورجینال','','','',
       ]]},
-      {values:[['plan_id','plan_name']]},
-      {values:[['product_id','plan_id']]},
-      {values:[['plan_id','requirement_id']]},
-      {values:[['plan_id','target_order']]},
+      {values:[['discount_percent','is_active','approved_for_owner','review_status'],['10',true,true,'OWNER_APPROVED']]},
     ]});
   };
   const catalog = await sheetCatalog(env, fakeFetch, Date.parse('2026-11-08T12:00:00Z'));
@@ -48,7 +45,16 @@ test('canonical updated Sheets schema loads products without removed Product_Var
   assert.equal(catalog.products[0].consumer_price,null);
   assert.equal(catalog.products[0].box_base_price,null);
   assert.deepEqual(catalog.plans,[]);
-  assert.equal(rangesSeen.length,5);
+  assert.deepEqual(catalog.priceRates, []);
+  assert.equal(catalog.products[0].owner_consumer_price_raw,null);
+  const now=Date.parse('2026-11-08T12:00:00Z');
+  const ownerCatalog=await sheetCatalog(env,fakeFetch,now,{ownerOnly:true});
+  assert.deepEqual(ownerCatalog.priceRates,[10]);
+  assert.equal(ownerCatalog.products[0].owner_consumer_price_raw,'150000');
+  const publicAgain=await sheetCatalog(env,fakeFetch,now);
+  assert.deepEqual(publicAgain.priceRates,[]);
+  assert.equal(publicAgain.products[0].owner_consumer_price_raw,null);
+  assert.equal(rangesSeen.length,6);
   assert.ok(rangesSeen.includes('Products!A1:U1000'));
   assert.ok(!rangesSeen.some(range=>range.includes('Product_Variants')));
 });
