@@ -37,6 +37,8 @@ test('canonical updated Sheets schema loads products without removed Product_Var
         'P001','',6,'PUBLISHED',true,'نوشابه اورجینال','','','',
       ]]},
       {values:[['discount_percent','is_active','approved_for_owner','review_status'],['10',true,true,'OWNER_APPROVED']]},
+      {values:[['plan_id','discount_percent','conditions','is_active','approved_for_public','review_status','valid_from','valid_to','sort_order'],
+        ['PA015',15,'بالای ۱۰ بسته نوشابه اورجینال و کانادا',true,true,'APPROVED','2026-11-01','',1]]},
     ]});
   };
   const catalog = await sheetCatalog(env, fakeFetch, Date.parse('2026-11-08T12:00:00Z'));
@@ -46,6 +48,7 @@ test('canonical updated Sheets schema loads products without removed Product_Var
   assert.equal(catalog.products[0].box_base_price,null);
   assert.deepEqual(catalog.plans,[]);
   assert.deepEqual(catalog.priceRates, []);
+  assert.deepEqual(catalog.planAnnouncements.map(p => p.discount_percent), [15]);
   assert.equal(catalog.products[0].owner_consumer_price_raw,null);
   const now=Date.parse('2026-11-08T12:00:00Z');
   const ownerCatalog=await sheetCatalog(env,fakeFetch,now,{ownerOnly:true});
@@ -54,7 +57,8 @@ test('canonical updated Sheets schema loads products without removed Product_Var
   const publicAgain=await sheetCatalog(env,fakeFetch,now);
   assert.deepEqual(publicAgain.priceRates,[]);
   assert.equal(publicAgain.products[0].owner_consumer_price_raw,null);
-  assert.equal(rangesSeen.length,6);
+  assert.equal(rangesSeen.length,9);
+  assert.ok(rangesSeen.includes('Plan_Announcements!A1:I100'));
   assert.ok(rangesSeen.includes('Products!A1:U1000'));
   assert.ok(!rangesSeen.some(range=>range.includes('Product_Variants')));
 });

@@ -4,6 +4,7 @@ import {
   card, welcome, mainMenu, mergePublicCatalog, productList, productFamilyList,
   productDetail, unitDetail, variantsList, searchPrompt, searchResults,
 } from './bot-ui.js';
+import { planAnnouncementList, planAnnouncementDetail } from './plan-announcements.js';
 
 const idPattern = '[A-Za-z0-9_-]{1,40}';
 const match = (value, pattern) => value.match(new RegExp(pattern, 'i'));
@@ -81,8 +82,12 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
     const p = findProduct(m[1]);
     return p ? productDetail(p, data, env) : notFound();
   }
-  if (['🎁 طرح‌های فروش', '🏷 طرح‌های فروش', '🏷 طرح‌های عمومی', '/plans'].includes(content) ||
-      /^(?:plans:|plan:|plan-group:|plan-rate:|plan-items:|quote:|\/plan(?:\s|$))/i.test(content))
+  if (['🎁 طرح‌های فروش', '🏷 طرح‌های فروش', '🏷 طرح‌های عمومی',
+      '📋 لیست طرح‌ها', '/plans', 'plan-announcements'].includes(content))
+    return planAnnouncementList(data);
+  if ((m = match(content, '^plan-announcement:(' + idPattern + ')$')))
+    return planAnnouncementDetail(data, m[1]);
+  if (/^(?:plans:|plan:|plan-group:|plan-rate:|plan-items:|quote:|\/plan(?:\s|$))/i.test(content))
     return mainMenu();
 
   if (['search', '/search', '🔎 جستجوی محصول', '🔎 جستجو'].includes(content))
