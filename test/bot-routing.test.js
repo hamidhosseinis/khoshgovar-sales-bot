@@ -18,6 +18,12 @@ const data = {
   products:p,
   priceRates:[10,12,13,15,16,20,25,30,33],
   plans:[{plan_id:'D001',plan_name:'طرح ۱',discount_percent:'10',conditions:'۱ تا ۱۰ بسته'}],
+  planAnnouncements:[
+    {plan_id:'PA015',discount_percent:15,conditions:'بالای ۱۰ بسته نوشابه اورجینال و کانادا'},
+    {plan_id:'PA017',discount_percent:17,conditions:'بالای ۱۰ بسته نوشابه اورجینال و کانادا + ۲ بسته تنوع بجز آب'},
+    {plan_id:'PA020',discount_percent:20,conditions:'بالای ۲۰ بسته نوشابه اورجینال و کانادا + ۳ بسته تنوع بجز آب'},
+    {plan_id:'PA033',discount_percent:33,conditions:'تنوع بالای ۲ بسته'},
+  ],
   links:[{product_id:'P003',plan_id:'D001'}],
   targets:[{plan_id:'D001',group_id:'ORIGINAL_SODA'}],requirements:[],
 };
@@ -69,10 +75,26 @@ test('product detail includes all nine direct percentage prices; old plan links 
   assert.ok(!calls(detail).some(x=>x.startsWith('cart')));
   const oldPrice=await replyTo(callback('final:P003:1'));
   assert.equal(oldPrice.text,detail.text);
-  for(const old of ['/plans','plan:D001','plans:1','plan-items:D001:1','quote:P003:D001']) {
+  for(const old of ['plan:D001','plans:1','plan-items:D001:1','quote:P003:D001']) {
     const retired=await replyTo(callback(old));
     assert.match(retired.text,/منوی فروش خوشگوار/);
   }
+});
+test('percentage buttons show only approved plan terms, with no price calculation',async()=>{
+  const menu = await replyTo(message('/menu'));
+  assert.ok(calls(menu).includes('plan-announcements'));
+  const list = await replyTo(callback('plan-announcements'));
+  assert.deepEqual(list.reply_markup.inline_keyboard.slice(0,2).flat().map(b=>b.text),
+    ['۱۵٪ تخفیف','۱۷٪ تخفیف','۲۰٪ تخفیف','۳۳٪ تخفیف']);
+  assert.deepEqual(calls(list).filter(x=>x.startsWith('plan-announcement:')),
+    ['plan-announcement:PA015','plan-announcement:PA017',
+      'plan-announcement:PA020','plan-announcement:PA033']);
+  assert.match((await replyTo(message('/plans'))).text,/درصد تخفیف/);
+  const detail = await replyTo(callback('plan-announcement:PA017'));
+  assert.match(detail.text,/۲ بسته تنوع بجز آب/);
+  assert.ok(calls(detail).includes('plan-announcements'));
+  assert.doesNotMatch(detail.text,/تومان|قیمت پایه|محاسبه|سبد خرید/);
+  assert.match((await replyTo(callback('plan-announcement:PRIVATE'))).text,/در دسترس نیست/);
 });
 test('legacy cart actions return the menu without accessing runtime storage',async()=>{
   const env={CART_DB:{prepare(){throw Error('cart storage must not be accessed');}}};
