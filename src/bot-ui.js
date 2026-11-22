@@ -4,6 +4,8 @@ import { CONSULTATION_BUTTON_TEXT, CONSULTATION_CHAT_URL } from './consultation.
 
 // Inline navigation exposes only published catalog items and approved sale plans.
 export const PAGE_SIZE = 5;
+// Only product families and their models use the expanded catalog page size.
+export const CATALOG_PAGE_SIZE = 10;
 export const fmt = value => Number(value).toLocaleString('fa-IR');
 const digits = '۰۱۲۳۴۵۶۷۸۹';
 const fa = value => String(value).replace(/[0-9]/g, c => digits[Number(c)]);
@@ -13,10 +15,10 @@ const pageButtons = (page, pages, prefix) => [
   ...(page > 1 ? [key('◀ قبلی', prefix + ':' + (page - 1))] : []),
   ...(page < pages ? [key('بعدی ▶', prefix + ':' + (page + 1))] : []),
 ];
-function pageOf(items, page) {
-  const pages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+function pageOf(items, page, size = PAGE_SIZE) {
+  const pages = Math.max(1, Math.ceil(items.length / size));
   if (!Number.isSafeInteger(page) || page < 1 || page > pages) return null;
-  return { items: items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), pages };
+  return { items: items.slice((page - 1) * size, page * size), pages };
 }
 export function card(text, rows = [], withHome = true) {
   // Share one row between Back and Home to avoid a tall navigation footer.
@@ -180,7 +182,7 @@ export function productFamilies(data) {
 export function productList(data, page = 1) {
   const families = productFamilies(data);
   if (!families.length) return card('📦 محصول منتشرشده‌ای موجود نیست.');
-  const v = pageOf(families, page);
+  const v = pageOf(families, page, CATALOG_PAGE_SIZE);
   if (!v) return card('این صفحه در دسترس نیست.');
   return card('📦 خانواده‌های کالایی' +
     (v.pages > 1 ? ' | ' + fmt(page) + ' از ' + fmt(v.pages) : '') +
@@ -194,7 +196,7 @@ export function productFamilyList(data, familyId, page = 1) {
   const families = productFamilies(data);
   const index = families.findIndex(f => f.id === familyId);
   if (index < 0) return card('این خانواده کالایی در دسترس نیست.');
-  const family = families[index], v = pageOf(family.items, page);
+  const family = families[index], v = pageOf(family.items, page, CATALOG_PAGE_SIZE);
   if (!v) return card('این صفحه در دسترس نیست.');
   const nameCounts = new Map();
   for (const item of family.items) {
@@ -216,7 +218,7 @@ export function productFamilyList(data, familyId, page = 1) {
     }),
     ...(pageButtons(page, v.pages, 'family:' + family.id).length
       ? [pageButtons(page, v.pages, 'family:' + family.id)] : []),
-    [key('🔙 خانواده‌ها', 'products:' + (Math.floor(index / PAGE_SIZE) + 1))],
+    [key('🔙 خانواده‌ها', 'products:' + (Math.floor(index / CATALOG_PAGE_SIZE) + 1))],
   ]);
 }
 export function productDetail(p, data, env = {}) {
@@ -251,7 +253,7 @@ export function productDetail(p, data, env = {}) {
     f.items.some(x => x.product_id === p.product_id));
   const familyIndex = family?.items.findIndex(x => x.product_id === p.product_id) ?? -1;
   const back = family ? 'family:' + family.id + ':' +
-    (Math.floor(familyIndex / PAGE_SIZE) + 1) : 'products:1';
+    (Math.floor(familyIndex / CATALOG_PAGE_SIZE) + 1) : 'products:1';
   return card(lines.join('\n'), [
     [key('🔙 بازگشت', back)],
   ]);
