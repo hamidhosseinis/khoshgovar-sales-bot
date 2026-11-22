@@ -43,6 +43,17 @@ test('catalog shows families first, then every published model with per-family p
   assert.deepEqual(callbacks(first).filter(x => x.startsWith('family:')), ['family:original:1']);
   assert.equal(productFamilies(data)[0].name, 'نوشابه اورجینال');
   assert.equal(callbacks(productFamilyList(data, 'original')).filter(x => x.startsWith('product:')).length, 10);
+  const firstModels = productFamilyList(data, 'original');
+  const modelRows = firstModels.reply_markup.inline_keyboard.filter(row =>
+    row.some(button => button.callback_data?.startsWith('product:')));
+  assert.equal(modelRows.length, 5); // Ten product buttons in five compact rows.
+  assert.ok(modelRows.every(row => row.length === 2));
+  assert.deepEqual(modelRows[0].map(x => x.callback_data), ['product:P003', 'product:P004']);
+  assert.ok(firstModels.reply_markup.inline_keyboard.some(row =>
+    row.length === 1 && row[0].callback_data === 'family:original:2'));
+  const secondModels = productFamilyList(data, 'original', 2);
+  assert.equal(secondModels.reply_markup.inline_keyboard[0].length, 1);
+  assert.equal(secondModels.reply_markup.inline_keyboard[0][0].callback_data, 'product:P013');
   assert.ok(callbacks(productFamilyList(data, 'original')).includes('family:original:2'));
   assert.deepEqual(callbacks(productFamilyList(data, 'original', 2)).filter(x => x.startsWith('product:')), ['product:P013']);
   assert.ok(callbacks(productFamilyList(data, 'original', 2)).includes('family:original:1'));
