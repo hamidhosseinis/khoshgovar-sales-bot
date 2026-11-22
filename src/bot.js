@@ -85,67 +85,7 @@ export async function botReply(update, env, requestFetch = fetch, loadCatalog = 
   if (['🎁 طرح‌های فروش', '🏷 طرح‌های فروش', '🏷 طرح‌های عمومی',
       '📋 لیست طرح‌ها', '/plans', 'plan-announcements'].includes(content))
     return planAnnouncementList(data);
-  if ((m = match(content, '^plan-announcement:(' + idPattern + ')  if (['search', '/search', '🔎 جستجوی محصول', '🔎 جستجو'].includes(content))
-    return searchPrompt();
-  if ((m = match(content, '^/search\\s+(.{2,60})$'))) return searchResults(m[1], data);
-
-  // Old Telegram messages may still contain cart buttons. Retire every
-  // legacy cart or basket-management command without reading or writing state.
-  if (content === 'cart' || content === '/cart' || content === '🛒 سبد خرید' ||
-      content.startsWith('cart-') || content.startsWith('cart:') ||
-      content === '🧮 محاسبه قیمت' || content === '/suggest' ||
-      content.startsWith('suggest:') || /^\/(?:add|remove|clear)(?:\s|$)/i.test(content))
-    return mainMenu();
-
-  if (!cb && content && !content.startsWith('/')) return searchResults(content, data);
-  return mainMenu();
-}
-
-)))
-    return planAnnouncementDetail(data, m[1]);
-  if (/^(?:plans:|plan:|plan-group:|plan-rate:|plan-items:|quote:|\/plan(?:\s|$))/i.test(content))
-    return mainMenu();
-
-  if (['search', '/search', '🔎 جستجوی محصول', '🔎 جستجو'].includes(content))
-    return searchPrompt();
-  if ((m = match(content, '^/search\\s+(.{2,60})$'))) return searchResults(m[1], data);
-
-  // Old Telegram messages may still contain cart buttons. Retire every
-  // legacy cart or basket-management command without reading or writing state.
-  if (content === 'cart' || content === '/cart' || content === '🛒 سبد خرید' ||
-      content.startsWith('cart-') || content.startsWith('cart:') ||
-      content === '🧮 محاسبه قیمت' || content === '/suggest' ||
-      content.startsWith('suggest:') || /^\/(?:add|remove|clear)(?:\s|$)/i.test(content))
-    return mainMenu();
-
-  if (!cb && content && !content.startsWith('/')) return searchResults(content, data);
-  return mainMenu();
-}
-
-))) {
-    return planAnnouncementDetail(data, m[1]);
-  }
-  if (/^(?:plans:|plan:|plan-group:|plan-rate:|plan-items:|quote:)/i.test(content))
-    return mainMenu();
-  if (/^\/plan(?:\s|$)/i.test(content))
-    return mainMenu();
-  if (['search', '/search', '🔎 جستجوی محصول', '🔎 جستجو'].includes(content))
-    return searchPrompt();
-  if ((m = match(content, '^/search\\s+(.{2,60})$'))) return searchResults(m[1], data);
-
-  // Old Telegram messages may still contain cart buttons. Retire every
-  // legacy cart or basket-management command without reading or writing state.
-  if (content === 'cart' || content === '/cart' || content === '🛒 سبد خرید' ||
-      content.startsWith('cart-') || content.startsWith('cart:') ||
-      content === '🧮 محاسبه قیمت' || content === '/suggest' ||
-      content.startsWith('suggest:') || /^\/(?:add|remove|clear)(?:\s|$)/i.test(content))
-    return mainMenu();
-
-  if (!cb && content && !content.startsWith('/')) return searchResults(content, data);
-  return mainMenu();
-}
-
-)))
+  if ((m = match(content, '^plan-announcement:(' + idPattern + ')$')))
     return planAnnouncementDetail(data, m[1]);
   if (/^(?:plans:|plan:|plan-group:|plan-rate:|plan-items:|quote:|\/plan(?:\s|$))/i.test(content))
     return mainMenu();
