@@ -50,7 +50,17 @@ test('family names follow published product names, without requiring discount-gr
   assert.equal(keys(productFamilyList(data, 'original')).filter(k => k.startsWith('product:')).length,5);
   assert.ok(productFamilyList(data, 'original').reply_markup.inline_keyboard
     .some(row => row.some(button => button.text === '2.5 لیتری')));
-  assert.ok(keys(productList(data)).includes('products:2'));
+  const overview = productList(data);
+  const visibleFamilies = keys(overview).filter(k => k.startsWith('family:'));
+  assert.equal(visibleFamilies.length, families.length);
+  assert.ok(visibleFamilies.includes('family:doogh:1'));
+  assert.ok(visibleFamilies.includes('family:heyday:1'));
+  assert.ok(visibleFamilies.includes('family:oreng:1'));
+  assert.ok(!keys(overview).includes('products:2'));
+  // Older inline keyboards still contain a second-page callback.
+  assert.deepEqual(keys(productList(data, 2)).filter(k => k.startsWith('family:')),
+    visibleFamilies);
+  assert.ok(keys(productFamilyList(data, 'oreng')).includes('products:1'));
   assert.ok(keys(productFamilyList(data, 'other')).includes('product:P090'));
 });
 test('family navigation is fail-closed for unknown/empty families and stale pages', async () => {
