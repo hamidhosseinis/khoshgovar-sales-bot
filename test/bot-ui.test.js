@@ -158,7 +158,7 @@ test('back and home share a compact inline row on detail screens', () => {
     .map(button => button.callback_data), ['plans:1', 'menu']);
   const menu = mainMenu();
   assert.deepEqual(callbacks(menu).slice(0, 4),
-    ['products:1', 'search']);
+    ['products:1', 'plan-announcements', 'search']);
 });
 
 test('canonical plan categories drive compact public plan navigation', () => {
