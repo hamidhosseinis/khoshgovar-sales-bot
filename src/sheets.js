@@ -1,4 +1,5 @@
 import { publicData } from './engine.js';
+import { approvedPlanAnnouncements } from './plan-announcements.js';
 
 // Google Cloud service-account must be shared on the spreadsheet as a reader.
 // The JSON credential is a Cloudflare secret, never a source file or customer value.
@@ -8,7 +9,7 @@ import { publicData } from './engine.js';
 // All discount percentages are sourced from the sole canonical workbook.
  // Retired promotion/quantity-plan tabs are deliberately not fetched.
 const TABS = {
-  Products:'A1:U1000', Price_Rates:'A1:E61',
+  Products:'A1:U1000', Price_Rates:'A1:E61', Plan_Announcements:'A1:I100',
 };
 let tokenCache = null;
 let dataCache = null;
@@ -72,7 +73,9 @@ export async function sheetCatalog(env, requestFetch=fetch, now=Date.now(), opti
     throw Error('sheet_invalid');
   const rows={};
   Object.keys(TABS).forEach((name,index)=>{rows[name]=rowsFromTable(payload.valueRanges[index]?.values);});
-  const data=publicData(rows,new Date(now).toISOString().slice(0,10), { ownerOnly });
+  const today = new Date(now).toISOString().slice(0, 10);
+  const data=publicData(rows,today, { ownerOnly });
+  data.planAnnouncements = approvedPlanAnnouncements(rows.Plan_Announcements, today);
   // A failed remote refresh must fail closed; a prior snapshot is NOT served after expiry.
   dataCache={id:env.SALES_SPREADSHEET_ID,ownerOnly,data,exp:now+60000};
   return data;
