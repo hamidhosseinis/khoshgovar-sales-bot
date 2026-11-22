@@ -15,6 +15,10 @@ const pageButtons = (page, pages, prefix) => [
   ...(page > 1 ? [key('◀ قبلی', prefix + ':' + (page - 1))] : []),
   ...(page < pages ? [key('بعدی ▶', prefix + ':' + (page + 1))] : []),
 ];
+// Two product buttons per row yield a shorter Telegram inline keyboard.
+// Telegram controls the actual button dimensions; navigation stays on its own row.
+const twoColumnRows = buttons => Array.from({ length: Math.ceil(buttons.length / 2) },
+  (_, i) => buttons.slice(i * 2, i * 2 + 2));
 function pageOf(items, page, size = PAGE_SIZE) {
   const pages = Math.max(1, Math.ceil(items.length / size));
   if (!Number.isSafeInteger(page) || page < 1 || page > pages) return null;
@@ -187,7 +191,7 @@ export function productList(data, page = 1) {
   return card('📦 خانواده‌های کالایی' +
     (v.pages > 1 ? ' | ' + fmt(page) + ' از ' + fmt(v.pages) : '') +
     '\nخانواده موردنظر را انتخاب کنید.', [
-    ...v.items.map(f => [key(f.name, 'family:' + f.id + ':1')]),
+    ...twoColumnRows(v.items.map(f => key(f.name, 'family:' + f.id + ':1'))),
     ...(pageButtons(page, v.pages, 'products').length ? [pageButtons(page, v.pages, 'products')] : []),
     [key('🔎 جستجوی محصول', 'search')],
   ]);
@@ -206,16 +210,15 @@ export function productFamilyList(data, familyId, page = 1) {
   return card('📦 ' + family.name +
     (v.pages > 1 ? ' | ' + fmt(page) + ' از ' + fmt(v.pages) : '') +
     '\nمدل موردنظر را انتخاب کنید.', [
-    ...v.items.map(p => {
+    ...twoColumnRows(v.items.map(p => {
       const name = normalizeCatalogName(p.product_name);
       const label = name.startsWith(family.name + ' ')
         ? name.slice(family.name.length + 1) : name;
-      // Do not guess unapproved flavors to distinguish source duplicates.
-      // Product IDs already identify each SKU and are safe to show when needed.
+      // Keep distinguishing details and source identifiers instead of clipping text.
       const display = (nameCounts.get(name) || 0) > 1
         ? label + ' (کد ' + p.product_id + ')' : label;
-      return [key(display, 'product:' + p.product_id)];
-    }),
+      return key(display, 'product:' + p.product_id);
+    })),
     ...(pageButtons(page, v.pages, 'family:' + family.id).length
       ? [pageButtons(page, v.pages, 'family:' + family.id)] : []),
     [key('🔙 خانواده‌ها', 'products:' + (Math.floor(index / CATALOG_PAGE_SIZE) + 1))],
