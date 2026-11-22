@@ -34,9 +34,11 @@ test('catalog entry opens families and every model remains accessible with searc
   assert.ok(calls(list).includes('family:sparkling-juice:1'));
   const models=await replyTo(callback('family:original:1'));
   assert.ok(calls(models).includes('product:P003'));
-  assert.ok(calls(models).includes('family:original:2'));
+  assert.ok(calls(models).includes('product:P008'));
+  assert.ok(calls(models).includes('product:P010'));
+  assert.ok(!calls(models).includes('family:original:2'));
   const second=await replyTo(callback('family:original:2'));
-  assert.ok(calls(second).includes('product:P008'));
+  assert.match(second.text, /در دسترس نیست/);
   const result=await replyTo(message('فرشی دی'));
   assert.ok(calls(result).includes('product:P023'));
   const detail=await replyTo(callback('product:P023'));
@@ -44,7 +46,7 @@ test('catalog entry opens families and every model remains accessible with searc
   assert.ok(calls(detail).includes('family:sparkling-juice:1'));
 });
 test('consolidated nostalgic shows approved flavors inline; legacy flavor route works',async()=>{
-  const list=await replyTo(callback('family:original:2'));
+  const list=await replyTo(callback('family:original:1'));
   assert.ok(calls(list).includes('product:P010'));
   assert.ok(!calls(list).includes('product:P001'));
   assert.ok(!calls(list).includes('product:P002'));

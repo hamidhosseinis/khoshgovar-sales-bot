@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  PAGE_SIZE, mainMenu, welcome, mergePublicCatalog, productList, productFamilyList,
+  PAGE_SIZE, CATALOG_PAGE_SIZE, mainMenu, welcome, mergePublicCatalog, productList, productFamilyList,
   productFamilies, productDetail,
   approvedSinglePackOffer, variantsList, planList, planCategories, planGroupList, planDetail, planQuote, planProducts,
   finalPriceList, discountedToman, discountedBottleToman, sheetToman, toman, unitDetail, searchResults,
@@ -37,14 +37,17 @@ test('inline navigation excludes the retired cart and reply keyboard', () => {
   assert.ok(!callbacks(menu).some(x=>x.startsWith('cart')));
 });
 test('catalog shows families first, then every published model with per-family pagination', () => {
-  assert.equal(PAGE_SIZE, 5);
+  assert.equal(PAGE_SIZE, 5); // Plans, flavors and search remain unchanged.
+  assert.equal(CATALOG_PAGE_SIZE, 10);
   const first = productList(data);
   assert.deepEqual(callbacks(first).filter(x => x.startsWith('family:')), ['family:original:1']);
   assert.equal(productFamilies(data)[0].name, 'نوشابه اورجینال');
-  assert.equal(callbacks(productFamilyList(data, 'original')).filter(x => x.startsWith('product:')).length, 5);
+  assert.equal(callbacks(productFamilyList(data, 'original')).filter(x => x.startsWith('product:')).length, 10);
   assert.ok(callbacks(productFamilyList(data, 'original')).includes('family:original:2'));
-  assert.ok(callbacks(productFamilyList(data, 'original', 3)).includes('product:P013'));
-  assert.match(productFamilyList(data, 'original', 4).text, /در دسترس نیست/);
+  assert.deepEqual(callbacks(productFamilyList(data, 'original', 2)).filter(x => x.startsWith('product:')), ['product:P013']);
+  assert.ok(callbacks(productFamilyList(data, 'original', 2)).includes('family:original:1'));
+  assert.match(productFamilyList(data, 'original', 3).text, /در دسترس نیست/);
+  assert.ok(callbacks(productDetail(products[10], data)).includes('family:original:2'));
   const detail = productDetail(products[0], data);
   assert.match(detail.text, /۱۲٬۲۰۰ تومان/);
   assert.match(detail.text, /تعداد در بسته: ۶ عدد/);

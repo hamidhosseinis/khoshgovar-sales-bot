@@ -50,7 +50,11 @@ test('family names follow published product names, without requiring discount-gr
   assert.equal(keys(productFamilyList(data, 'original')).filter(k => k.startsWith('product:')).length,5);
   assert.ok(productFamilyList(data, 'original').reply_markup.inline_keyboard
     .some(row => row.some(button => button.text === '2.5 لیتری')));
+  assert.equal(keys(productList(data)).filter(k => k.startsWith('family:')).length, 10);
   assert.ok(keys(productList(data)).includes('products:2'));
+  assert.equal(keys(productList(data, 2)).filter(k => k.startsWith('family:')).length, families.length - 10);
+  assert.match(productList(data, 3).text, /در دسترس نیست/);
+  assert.ok(keys(productFamilyList(data, 'ludvig')).includes('products:2'));
   assert.ok(keys(productFamilyList(data, 'other')).includes('product:P090'));
 });
 test('family navigation is fail-closed for unknown/empty families and stale pages', async () => {
