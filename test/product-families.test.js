@@ -51,6 +51,18 @@ test('family names follow published product names, without requiring discount-gr
   assert.ok(productFamilyList(data, 'original').reply_markup.inline_keyboard
     .some(row => row.some(button => button.text === '2.5 لیتری')));
   assert.equal(keys(productList(data)).filter(k => k.startsWith('family:')).length, 10);
+  const firstFamilies = productList(data).reply_markup.inline_keyboard.filter(row =>
+    row.some(button => button.callback_data?.startsWith('family:')));
+  assert.equal(firstFamilies.length, 5);
+  assert.ok(firstFamilies.every(row => row.length === 2));
+  assert.deepEqual(firstFamilies[0].map(button => button.callback_data),
+    ['family:original:1', 'family:canada:1']);
+  const nextFamilies = productList(data, 2).reply_markup.inline_keyboard.filter(row =>
+    row.some(button => button.callback_data?.startsWith('family:')));
+  assert.equal(nextFamilies.length, Math.ceil((families.length - 10) / 2));
+  assert.ok(nextFamilies.every(row => row.length >= 1 && row.length <= 2));
+  assert.ok(productList(data).reply_markup.inline_keyboard.some(row =>
+    row.length === 1 && row[0].callback_data === 'products:2'));
   assert.ok(keys(productList(data)).includes('products:2'));
   assert.equal(keys(productList(data, 2)).filter(k => k.startsWith('family:')).length, families.length - 10);
   assert.match(productList(data, 3).text, /در دسترس نیست/);
