@@ -12,7 +12,7 @@ const PRIVATE_BOT_NOTICE = '🔒 این بات خصوصی است و برای د�
 // the customer sends a command or taps an old bottom-keyboard text button.
 // Inline callbacks never trigger a second message or an extra keyboard.
 const LEGACY_REPLY_BUTTONS = new Set([
-  '📦 محصولات', '🏷 طرح‌های فروش', '🏷 طرح‌های عمومی',
+  '📦 محصولات', '🏷 طرح‌های فروش', '🏷 طرح‌های عمومی', '📋 لیست طرح‌ها',
   '💰 لیست قیمت', '💰 قیمت‌ها', '🔎 جستجوی محصول', '🔎 جستجو',
   '🧮 محاسبه قیمت', '🛒 سبد خرید', 'ℹ️ راهنما', '💬 مشاوره',
 ]);
