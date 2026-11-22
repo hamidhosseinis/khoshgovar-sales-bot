@@ -39,6 +39,7 @@ export function card(text, rows = [], withHome = true) {
 export function mainMenu() {
   return card('🥤 منوی فروش خوشگوار\nبخش موردنظر را انتخاب کنید:', [
     [key('📦 محصولات', 'products:1')],
+    [key('📋 لیست طرح‌ها', 'plan-announcements')],
     [key('🔎 جستجو', 'search')],
     [{ text: CONSULTATION_BUTTON_TEXT, url: CONSULTATION_CHAT_URL }],
   ], false);
