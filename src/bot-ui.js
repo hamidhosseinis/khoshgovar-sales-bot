@@ -180,13 +180,20 @@ export function productFamilies(data) {
 export function productList(data, page = 1) {
   const families = productFamilies(data);
   if (!families.length) return card('📦 محصول منتشرشده‌ای موجود نیست.');
-  const v = pageOf(families, page);
-  if (!v) return card('این صفحه در دسترس نیست.');
-  return card('📦 خانواده‌های کالایی' +
-    (v.pages > 1 ? ' | ' + fmt(page) + ' از ' + fmt(v.pages) : '') +
-    '\nخانواده موردنظر را انتخاب کنید.', [
-    ...v.items.map(f => [key(f.name, 'family:' + f.id + ':1')]),
-    ...(pageButtons(page, v.pages, 'products').length ? [pageButtons(page, v.pages, 'products')] : []),
+  // Older Telegram messages may still contain page 2/3 callbacks. Keep
+  // those valid, but show the COMPLETE published family menu on every page.
+  const oldPageCount = Math.ceil(families.length / PAGE_SIZE);
+  if (!Number.isSafeInteger(page) || page < 1 || page > oldPageCount)
+    return card('این صفحه در دسترس نیست.');
+  // A compact two-column menu prevents non-soda families from being
+  // concealed behind the pagination of the previous UI.
+  const buttons = [];
+  for (let i = 0; i < families.length; i += 2) {
+    buttons.push(families.slice(i, i + 2).map(f =>
+      key(f.name, 'family:' + f.id + ':1')));
+  }
+  return card('📦 خانواده‌های کالایی\nتمام خانواده‌های قابل نمایش در این فهرست هستند.', [
+    ...buttons,
     [key('🔎 جستجوی محصول', 'search')],
   ]);
 }
@@ -216,7 +223,7 @@ export function productFamilyList(data, familyId, page = 1) {
     }),
     ...(pageButtons(page, v.pages, 'family:' + family.id).length
       ? [pageButtons(page, v.pages, 'family:' + family.id)] : []),
-    [key('🔙 خانواده‌ها', 'products:' + (Math.floor(index / PAGE_SIZE) + 1))],
+    [key('🔙 خانواده‌ها', 'products:1')],
   ]);
 }
 export function productDetail(p, data, env = {}) {
